@@ -185,6 +185,27 @@ textarea{resize:vertical;min-height:72px}
 .badge-admin{background:var(--accent-light);color:var(--accent-dark)}
 .badge-member{background:var(--green-light);color:var(--green)}
 
+/* ── GRADES ── */
+.grade-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.grade-subject{width:48px;height:48px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+.grade-score{font-size:20px;font-weight:700;min-width:52px;text-align:right}
+.grade-badge{font-size:10px;padding:2px 7px;border-radius:999px;margin-left:4px}
+.score-s{color:#0F6E56;background:#E1F5EE}
+.score-a{color:#534AB7;background:#EEEDFE}
+.score-b{color:#BA7517;background:#FAEEDA}
+.score-c{color:#993C1D;background:#FAECE7}
+.trend-up{color:var(--green);font-size:11px}
+.trend-down{color:var(--red);font-size:11px}
+.trend-eq{color:var(--text3);font-size:11px}
+.subject-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.subject-bar-label{font-size:12px;width:36px;flex-shrink:0;color:var(--text2)}
+.subject-bar-wrap{flex:1;height:22px;background:var(--bg);border-radius:var(--radius-sm);overflow:hidden;position:relative}
+.subject-bar-fill{height:100%;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:11px;font-weight:600;color:#fff;transition:width .4s}
+.subject-bar-avg{font-size:12px;width:40px;text-align:right;color:var(--text2);flex-shrink:0}
+.gr-tab-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.gr-tab{font-size:12px;padding:5px 14px;border:1px solid var(--border);border-radius:999px;cursor:pointer;background:transparent;color:var(--text2)}
+.gr-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
 /* ── EMPTY ── */
 .empty{text-align:center;padding:40px 20px;color:var(--text3)}
 .empty i{font-size:36px;margin-bottom:8px;display:block}
@@ -261,6 +282,8 @@ textarea{resize:vertical;min-height:72px}
       <div class="nav-section">財務 &amp; 採購</div>
       <div class="nav-item" data-panel="ledger" onclick="show('ledger',this)"><i class="ti ti-wallet"></i> 家庭帳本</div>
       <div class="nav-item" data-panel="shopping" onclick="show('shopping',this)"><i class="ti ti-shopping-cart"></i> 購物清單</div>
+      <div class="nav-section">學習</div>
+      <div class="nav-item" data-panel="grades" onclick="show('grades',this)"><i class="ti ti-school"></i> 成績記錄</div>
       <div class="nav-section">系統</div>
       <div class="nav-item" data-panel="settings" onclick="show('settings',this)"><i class="ti ti-settings"></i> 設定</div>
     </div>
@@ -355,6 +378,20 @@ textarea{resize:vertical;min-height:72px}
       <div id="panel-shopping" class="panel">
         <div class="section-head"><div class="section-title">購物清單</div></div>
         <div id="shopping-list"></div>
+      </div>
+
+      <!-- 成績記錄 -->
+      <div id="panel-grades" class="panel">
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <select id="gr-filter-child" onchange="renderGrades()" style="width:120px;flex-shrink:0"><option value="">所有孩子</option></select>
+          <select id="gr-filter-year" onchange="renderGrades()" style="width:130px;flex-shrink:0"><option value="">所有學年</option></select>
+          <select id="gr-filter-sem" onchange="renderGrades()" style="width:110px;flex-shrink:0"><option value="">所有學期</option><option>上學期</option><option>下學期</option></select>
+        </div>
+        <div class="grid3" id="grades-stats"></div>
+        <div class="section-head" style="margin-top:4px"><div class="section-title">各科成績趨勢</div></div>
+        <div id="grades-chart"></div>
+        <div class="section-head" style="margin-top:16px"><div class="section-title">成績明細</div></div>
+        <div id="grades-list"></div>
       </div>
 
       <!-- 設定 -->
@@ -465,6 +502,29 @@ textarea{resize:vertical;min-height:72px}
   <div class="form-group"><label>身份</label><select id="au-role"><option value="member">一般成員</option><option value="admin">管理員</option></select></div>
   <button class="btn btn-primary" style="width:100%" onclick="saveNewUser()">建立帳號</button>
   <div id="au-msg" style="font-size:12px;margin-top:8px;min-height:16px"></div>
+</div></div>
+
+<!-- 成績 Modal -->
+<div class="modal-overlay" id="modal-grades"><div class="modal">
+  <div class="modal-title">新增成績 <span class="modal-close" onclick="closeModal('modal-grades')">×</span></div>
+  <div class="form-row">
+    <div class="form-group"><label>孩子姓名</label><select id="g-child"></select></div>
+    <div class="form-group"><label>學年度</label><select id="g-year"></select></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>學期</label><select id="g-sem"><option>上學期</option><option>下學期</option></select></div>
+    <div class="form-group"><label>考試類型</label><select id="g-type"><option>月考</option><option>期中考</option><option>期末考</option><option>小考</option><option>模擬考</option></select></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>科目</label><select id="g-subject"><option>國語</option><option>數學</option><option>英語</option><option>自然</option><option>社會</option><option>生活</option><option>體育</option><option>其他</option></select></div>
+    <div class="form-group"><label>成績（分）</label><input type="number" id="g-score" placeholder="0-100" min="0" max="100"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>滿分</label><input type="number" id="g-full" value="100" min="1"></div>
+    <div class="form-group"><label>考試日期</label><input type="date" id="g-date"></div>
+  </div>
+  <div class="form-group"><label>備註</label><input id="g-note" placeholder="選填"></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveGrade()">儲存成績</button>
 </div></div>
 
 <!-- Firebase SDK -->
@@ -635,7 +695,7 @@ function syncDot(state){ const d=document.getElementById('sync-dot'); d.classNam
 
 function startListeners(){
   syncDot('syncing');
-  const cols=['bulletins','events','todos','ledger','shopping','memos','members','album','accounts'];
+  const cols=['bulletins','events','todos','ledger','shopping','memos','members','album','accounts','grades'];
   let loaded=0;
   cols.forEach(col=>{
     const unsub=db.collection(col).onSnapshot(snap=>{
@@ -656,15 +716,15 @@ function startListeners(){
 function renderForCol(col){
   const map={bulletins:renderBulletin,events:()=>{renderCalendar();renderBulletin();},
     todos:()=>{renderTodo();renderBulletin();},ledger:renderLedger,
-    shopping:renderShopping,memos:renderMemo,members:renderMembers,
-    album:renderAlbum,accounts:renderSettings};
+    shopping:renderShopping,memos:renderMemo,members:()=>{renderMembers();renderGrades();},
+    album:renderAlbum,accounts:renderSettings,grades:renderGrades};
   if(map[col])map[col]();
 }
 
 // ══════════════════════════════════════════
 //  NAVIGATION
 // ══════════════════════════════════════════
-const TITLES={bulletin:'公告欄',calendar:'行事曆',todo:'待辦清單',album:'相簿',members:'家庭成員',memo:'備忘錄',ledger:'家庭帳本',shopping:'購物清單',settings:'設定'};
+const TITLES={bulletin:'公告欄',calendar:'行事曆',todo:'待辦清單',album:'相簿',members:'家庭成員',memo:'備忘錄',ledger:'家庭帳本',shopping:'購物清單',grades:'成績記錄',settings:'設定'};
 let currentPanel='bulletin';
 function show(id,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -677,10 +737,11 @@ function show(id,el){
 function handleAdd(){
   const map={bulletin:'modal-bulletin',calendar:'modal-calendar',todo:'modal-todo',
     memo:'modal-memo',ledger:'modal-ledger',shopping:'modal-shopping',
-    album:'modal-album',members:'modal-member'};
+    album:'modal-album',members:'modal-member',grades:'modal-grades'};
   document.getElementById('e-date').value=nowDate();
   document.getElementById('t-date').value=nowDate();
   document.getElementById('l-date').value=nowDate();
+  document.getElementById('g-date').value=nowDate();
   if(map[currentPanel])openModal(map[currentPanel]);
 }
 function openModal(id){document.getElementById(id).classList.add('open')}
@@ -996,6 +1057,144 @@ async function saveNewUser(){
 async function delAccount(docId,username){
   if(!confirm(`確定刪除帳號 ${username}？`))return;
   syncDot('syncing');await db.collection('accounts').doc(docId).delete();syncDot('synced');
+}
+
+// ══════════════════════════════════════════
+//  GRADES
+// ══════════════════════════════════════════
+const SUBJECT_COLORS={'國語':'#534AB7','數學':'#1D9E75','英語':'#D85A30','自然':'#185FA5','社會':'#BA7517','生活':'#639922','體育':'#D4537E','其他':'#888780'};
+const CURRENT_YEAR = ()=>{ const n=new Date(); return n.getMonth()>=8 ? n.getFullYear()-1911 : n.getFullYear()-1912; };
+
+function gradeLevel(score,full){
+  const pct=score/full*100;
+  if(pct>=90)return{label:'優',cls:'score-s'};
+  if(pct>=80)return{label:'良',cls:'score-a'};
+  if(pct>=70)return{label:'可',cls:'score-b'};
+  return{label:'待加油',cls:'score-c'};
+}
+
+function initGradeSelects(){
+  const children=[...new Set(D.members.map(m=>m.name))];
+  const childSel=document.getElementById('g-child');
+  childSel.innerHTML=children.map(c=>`<option>${c}</option>`).join('');
+  const yr=CURRENT_YEAR();
+  const years=Array.from({length:6},(_,i)=>`${yr-i}學年度`);
+  const yearSel=document.getElementById('g-year');
+  yearSel.innerHTML=years.map(y=>`<option>${y}</option>`).join('');
+  // filter selects
+  const fc=document.getElementById('gr-filter-child');
+  const saved=fc.value;
+  fc.innerHTML='<option value="">所有孩子</option>'+children.map(c=>`<option>${c}</option>`).join('');
+  if(saved)fc.value=saved;
+  const fy=document.getElementById('gr-filter-year');
+  const savedY=fy.value;
+  const allYears=[...new Set(D.grades.map(g=>g.year))].sort((a,b)=>b.localeCompare(a));
+  years.forEach(y=>{ if(!allYears.includes(y))allYears.unshift(y); });
+  fy.innerHTML='<option value="">所有學年</option>'+allYears.map(y=>`<option>${y}</option>`).join('');
+  if(savedY)fy.value=savedY;
+}
+
+function renderGrades(){
+  if(!document.getElementById('panel-grades')) return;
+  initGradeSelects();
+  const fc=document.getElementById('gr-filter-child').value;
+  const fy=document.getElementById('gr-filter-year').value;
+  const fs=document.getElementById('gr-filter-sem').value;
+  let list=[...D.grades];
+  if(fc)list=list.filter(g=>g.child===fc);
+  if(fy)list=list.filter(g=>g.year===fy);
+  if(fs)list=list.filter(g=>g.sem===fs);
+
+  // stats
+  const scores=list.map(g=>g.score/g.full*100);
+  const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
+  const best=scores.length?Math.round(Math.max(...scores)):0;
+  const subjectCount=[...new Set(list.map(g=>g.subject))].length;
+  document.getElementById('grades-stats').innerHTML=`
+    <div class="metric"><div class="metric-label">平均分數</div><div class="metric-val" style="color:var(--accent)">${avg}<span style="font-size:13px">%</span></div></div>
+    <div class="metric"><div class="metric-label">最高分</div><div class="metric-val" style="color:var(--green)">${best}<span style="font-size:13px">%</span></div></div>
+    <div class="metric"><div class="metric-label">記錄筆數</div><div class="metric-val">${list.length}</div></div>`;
+
+  // subject bars
+  const subjects=[...new Set(list.map(g=>g.subject))];
+  const barHtml=subjects.map(sub=>{
+    const rows=list.filter(g=>g.subject===sub);
+    const subAvg=Math.round(rows.reduce((a,g)=>a+g.score/g.full*100,0)/rows.length);
+    const col=SUBJECT_COLORS[sub]||'#888780';
+    // trend: compare last two exams
+    const sorted=[...rows].sort((a,b)=>a.date.localeCompare(b.date));
+    let trend='';
+    if(sorted.length>=2){
+      const diff=Math.round(sorted[sorted.length-1].score/sorted[sorted.length-1].full*100 - sorted[sorted.length-2].score/sorted[sorted.length-2].full*100);
+      if(diff>0)trend=`<span class="trend-up">▲${diff}</span>`;
+      else if(diff<0)trend=`<span class="trend-down">▼${Math.abs(diff)}</span>`;
+      else trend=`<span class="trend-eq">—</span>`;
+    }
+    return `<div class="subject-bar-row">
+      <div class="subject-bar-label">${esc(sub)}</div>
+      <div class="subject-bar-wrap"><div class="subject-bar-fill" style="width:${subAvg}%;background:${col}">${subAvg}%</div></div>
+      <div class="subject-bar-avg">${trend}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('grades-chart').innerHTML=barHtml||'<div style="font-size:13px;color:var(--text3);padding:8px 0">尚無成績資料</div>';
+
+  // list
+  const sorted=[...list].sort((a,b)=>b.date.localeCompare(a.date));
+  const typeColors={月考:'#534AB7',期中考:'#D85A30',期末考:'#1D9E75',小考:'#BA7517',模擬考:'#185FA5'};
+  document.getElementById('grades-list').innerHTML=sorted.length?sorted.map(g=>{
+    const pct=Math.round(g.score/g.full*100);
+    const lv=gradeLevel(g.score,g.full);
+    const col=SUBJECT_COLORS[g.subject]||'#888780';
+    const tc=typeColors[g.type]||'#888780';
+    // find previous same subject+child for trend
+    const prev=D.grades.filter(x=>x.child===g.child&&x.subject===g.subject&&x.date<g.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    let trendHtml='';
+    if(prev){
+      const diff=pct-Math.round(prev.score/prev.full*100);
+      if(diff>0)trendHtml=`<span class="trend-up" title="比上次進步 ${diff}%">▲${diff}</span>`;
+      else if(diff<0)trendHtml=`<span class="trend-down" title="比上次退步 ${Math.abs(diff)}%">▼${Math.abs(diff)}</span>`;
+      else trendHtml=`<span class="trend-eq">—</span>`;
+    }
+    return `<div class="grade-row">
+      <div class="grade-subject" style="background:${col}22;color:${col}">${esc(g.subject)}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${esc(g.child)} · ${esc(g.year)} ${esc(g.sem)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">
+          <span style="background:${tc}22;color:${tc};padding:1px 6px;border-radius:4px;font-size:10px">${esc(g.type)}</span>
+          ${fmtDate(g.date)}${g.note?' · '+esc(g.note):''}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="grade-score" style="color:${col}">${g.score}<span style="font-size:12px;color:var(--text3)">/${g.full}</span></div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:2px">
+          <span class="grade-badge ${lv.cls}">${lv.label}</span>${trendHtml}
+        </div>
+      </div>
+      <span class="del-btn" onclick="del('grades','${g._id}')"><i class="ti ti-trash"></i></span>
+    </div>`;
+  }).join(''):'<div class="empty"><i class="ti ti-school"></i>尚無成績記錄</div>';
+}
+
+async function saveGrade(){
+  const score=parseFloat(document.getElementById('g-score').value);
+  const full=parseFloat(document.getElementById('g-full').value)||100;
+  const child=document.getElementById('g-child').value;
+  const date=document.getElementById('g-date').value;
+  if(!child||isNaN(score)||!date)return;
+  syncDot('syncing');
+  await db.collection('grades').add({
+    child,
+    year:document.getElementById('g-year').value,
+    sem:document.getElementById('g-sem').value,
+    type:document.getElementById('g-type').value,
+    subject:document.getElementById('g-subject').value,
+    score,full,date,
+    note:document.getElementById('g-note').value.trim(),
+    createdAt:ts()
+  });
+  document.getElementById('g-score').value='';
+  document.getElementById('g-note').value='';
+  closeModal('modal-grades');syncDot('synced');
 }
 
 // ══════════════════════════════════════════
