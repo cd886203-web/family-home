@@ -685,7 +685,7 @@ function handleAdd(){
 }
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
-document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+// 點外圍不關閉，僅 × 按鈕關閉
 
 // ══════════════════════════════════════════
 //  BULLETIN
