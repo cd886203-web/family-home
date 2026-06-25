@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我家的家</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f0;--surface:#ffffff;--sidebar:#fafaf7;--border:#e0dfd8;
+  --text:#1a1a18;--text2:#6b6b66;--text3:#a8a8a2;
+  --accent:#534AB7;--accent-light:#EEEDFE;--accent-dark:#3C3489;
+  --green:#0F6E56;--green-light:#E1F5EE;
+  --red:#993C1D;--red-light:#FAECE7;
+  --amber:#BA7517;--amber-light:#FAEEDA;
+  --radius:10px;--radius-sm:6px;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+
+/* ── SETUP SCREEN ── */
+#setup-screen{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:none;align-items:center;justify-content:center}
+#setup-screen.show{display:flex}
+.setup-box{background:#fff;border-radius:16px;padding:32px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto}
+.setup-box h2{font-size:18px;font-weight:600;margin-bottom:6px}
+.setup-box p{font-size:13px;color:#555;margin-bottom:14px;line-height:1.7}
+.setup-box ol{font-size:13px;color:#333;line-height:2;padding-left:20px;margin-bottom:16px}
+.setup-box ol li code{background:#f0f0f0;padding:1px 6px;border-radius:4px;font-size:12px}
+.setup-cfg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.setup-cfg input{font-size:12px;padding:7px 9px;border:1px solid #ddd;border-radius:6px;width:100%}
+.setup-cfg input:focus{outline:none;border-color:#534AB7}
+.setup-cfg input.full{grid-column:1/-1}
+.setup-save{background:#534AB7;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;cursor:pointer;width:100%}
+.setup-save:hover{background:#3C3489}
+.setup-err{font-size:12px;color:#c00;margin-top:8px;min-height:16px}
+
+/* ── LOADING ── */
+#loading{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+#loading .spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{font-size:13px;color:var(--text2)}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:400}
+#login-screen.show{display:flex}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px 40px;width:360px;text-align:center}
+.login-logo{font-size:28px;margin-bottom:6px}
+.login-title{font-size:18px;font-weight:600;margin-bottom:4px}
+.login-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+.login-box label{display:block;text-align:left;font-size:12px;color:var(--text2);margin-bottom:4px;margin-top:14px}
+.login-box input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text);outline:none}
+.login-box input:focus{border-color:var(--accent)}
+.login-btn{margin-top:20px;width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer}
+.login-btn:hover{background:var(--accent-dark)}
+.login-err{margin-top:10px;font-size:12px;color:var(--red);min-height:16px}
+.cfg-link{margin-top:14px;font-size:12px;color:var(--text3);cursor:pointer;text-decoration:underline}
+
+/* ── APP ── */
+#app{display:none;height:100vh;overflow:hidden}
+.layout{display:flex;height:100vh}
+.sidebar{width:210px;min-width:210px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh}
+.sidebar-header{padding:18px 16px 14px;border-bottom:1px solid var(--border)}
+.site-name{font-size:16px;font-weight:600;display:flex;align-items:center;gap:7px}
+.site-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.nav{flex:1;padding:8px 0;overflow-y:auto}
+.nav-section{font-size:10px;color:var(--text3);padding:10px 16px 4px;letter-spacing:.06em;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-right:2px solid transparent;transition:all .12s}
+.nav-item:hover{background:rgba(83,74,183,.06);color:var(--text)}
+.nav-item.active{background:var(--accent-light);color:var(--accent-dark);font-weight:600;border-right-color:var(--accent)}
+.nav-item i{font-size:16px}
+.sidebar-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.user-info .user-name{font-weight:500;font-size:13px}
+.user-info .user-role{font-size:11px;color:var(--text2)}
+.logout-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent}
+.logout-btn:hover{color:var(--red);border-color:var(--red)}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface)}
+.page-title{font-size:16px;font-weight:600}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#ccc;transition:background .3s}
+.sync-dot.synced{background:var(--green)}
+.sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.btn{font-size:12px;padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .12s}
+.btn:hover{background:var(--bg);border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-dark);color:#fff;border-color:var(--accent-dark)}
+.content{flex:1;overflow-y:auto;padding:20px}
+.panel{display:none}
+.panel.active{display:block}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px}
+.card-title{font-size:13px;font-weight:600}
+.card-meta{font-size:11px;color:var(--text3);margin-top:3px}
+.card-body{font-size:13px;color:var(--text2);margin-top:8px;line-height:1.6}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.metric-label{font-size:11px;color:var(--text2);margin-bottom:4px}
+.metric-val{font-size:22px;font-weight:600}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;margin-top:4px}
+.section-title{font-size:13px;font-weight:600;color:var(--text2)}
+.tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;margin-right:5px;margin-bottom:5px}
+.tag-purple{background:var(--accent-light);color:var(--accent-dark)}
+.tag-teal{background:var(--green-light);color:var(--green)}
+.tag-amber{background:var(--amber-light);color:var(--amber)}
+.tag-red{background:var(--red-light);color:var(--red)}
+
+/* ── FORM ── */
+input,select,textarea{font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:72px}
+.form-group{margin-bottom:10px}
+.form-group label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius);padding:24px;width:420px;max-width:90vw;max-height:80vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{cursor:pointer;font-size:18px;color:var(--text3)}
+.modal-close:hover{color:var(--text)}
+
+/* ── CALENDAR ── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dname{font-size:10px;color:var(--text3);text-align:center;padding:4px 0}
+.cal-day{font-size:12px;text-align:center;padding:7px 2px;border-radius:var(--radius-sm);color:var(--text2);cursor:pointer;position:relative}
+.cal-day:hover{background:var(--bg)}
+.cal-day.today{background:var(--accent);color:#fff;font-weight:600}
+.cal-day.other{color:var(--text3)}
+.cal-day .dot{width:4px;height:4px;border-radius:50%;background:var(--green);margin:1px auto 0}
+.event-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.event-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* ── TODO / SHOPPING ── */
+.todo-item,.shop-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.chk{width:18px;height:18px;border:1.5px solid var(--border);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s}
+.chk.done{background:var(--accent);border-color:var(--accent)}
+.todo-text{flex:1;font-size:13px}
+.todo-text.done{text-decoration:line-through;color:var(--text3)}
+.todo-meta{font-size:11px;color:var(--text3)}
+.shop-qty{font-size:11px;color:var(--text3);min-width:32px;text-align:right}
+.del-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px}
+.del-btn:hover{color:var(--red);background:var(--red-light)}
+
+/* ── MEMBERS ── */
+.member-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 12px;text-align:center}
+.avatar{width:46px;height:46px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px}
+
+/* ── ALBUM ── */
+.album-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.photo-card{border:1px solid var(--border);border-radius:var(--radius);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:12px;color:var(--text3);cursor:pointer;overflow:hidden;background:var(--surface);position:relative}
+.photo-card img{width:100%;height:100%;object-fit:cover}
+.photo-card:hover{border-color:var(--accent);color:var(--accent)}
+.photo-add{border:1.5px dashed var(--border);background:transparent}
+.photo-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.45);color:#fff;font-size:11px;padding:4px 8px;text-align:center}
+
+/* ── MEMO ── */
+.memo-card{background:#FAEEDA;border-radius:var(--radius);padding:14px;margin-bottom:10px;position:relative}
+.memo-text{font-size:13px;color:#412402;line-height:1.6}
+.memo-date{font-size:11px;color:#633806;margin-top:6px}
+
+/* ── LEDGER ── */
+.ledger-tabs{display:flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.ledger-tab{flex:1;font-size:12px;padding:7px 0;text-align:center;cursor:pointer;border:none;background:transparent;color:var(--text2)}
+.ledger-tab.active{background:var(--accent);color:#fff;font-weight:600}
+.ledger-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.ledger-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ledger-name{font-size:13px;font-weight:500}
+.ledger-sub{font-size:11px;color:var(--text3)}
+.amount-in{color:var(--green);font-weight:600}
+.amount-out{color:var(--red);font-weight:600}
+.bar-wrap{height:8px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:4px}
+.bar-fill{height:100%;border-radius:999px}
+.cat-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.cat-label{font-size:12px;color:var(--text2);width:64px;flex-shrink:0}
+.cat-bar{flex:1}
+.cat-amt{font-size:12px;color:var(--text2);width:64px;text-align:right;flex-shrink:0}
+
+/* ── ACCOUNTS ── */
+.account-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.badge{font-size:10px;padding:2px 8px;border-radius:999px}
+.badge-admin{background:var(--accent-light);color:var(--accent-dark)}
+.badge-member{background:var(--green-light);color:var(--green)}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty i{font-size:36px;margin-bottom:8px;display:block}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+</style>
+</head>
+<body>
+
+<!-- ── SETUP ── -->
+<div id="setup-screen">
+  <div class="setup-box">
+    <h2>🔧 Firebase 設定</h2>
+    <p>首次使用需填入 Firebase 設定，之後資料將自動雲端同步。<br>
+    如果您已有設定檔請直接貼入，或依照以下步驟建立：</p>
+    <ol>
+      <li>前往 <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a></li>
+      <li>點「新增專案」，取個名稱（例如：my-family-home）</li>
+      <li>進入專案後，點左側「Firestore Database」→「建立資料庫」→「以測試模式啟動」</li>
+      <li>回到「專案設定」→「一般」→「您的應用程式」→點「&lt;/&gt;」網頁圖示</li>
+      <li>複製 <code>firebaseConfig</code> 內容，填入下方欄位</li>
+    </ol>
+    <div class="setup-cfg">
+      <input class="full" id="cfg-apiKey"            placeholder="apiKey">
+      <input id="cfg-authDomain"        placeholder="authDomain">
+      <input id="cfg-projectId"         placeholder="projectId">
+      <input id="cfg-storageBucket"     placeholder="storageBucket">
+      <input id="cfg-messagingSenderId" placeholder="messagingSenderId">
+      <input id="cfg-appId"             placeholder="appId">
+    </div>
+    <button class="setup-save" onclick="saveFirebaseConfig()">儲存並連線</button>
+    <div class="setup-err" id="setup-err"></div>
+  </div>
+</div>
+
+<!-- ── LOADING ── -->
+<div id="loading">
+  <div class="spin"></div>
+  <p id="loading-msg">連線中…</p>
+</div>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🏠</div>
+    <div class="login-title" id="login-site-title">我家的家</div>
+    <div class="login-sub">家庭專屬空間，請先登入</div>
+    <label>帳號</label>
+    <input type="text" id="login-user" placeholder="輸入帳號" autocomplete="username">
+    <label>密碼</label>
+    <input type="password" id="login-pass" placeholder="輸入密碼" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">登入</button>
+    <div class="login-err" id="login-err"></div>
+    <div class="cfg-link" onclick="showSetup()">重新設定 Firebase</div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="site-name" id="sidebar-sitename"><i class="ti ti-home"></i> 我家的家</div>
+      <div class="site-sub" id="sidebar-date"></div>
+    </div>
+    <div class="nav">
+      <div class="nav-item active" data-panel="bulletin" onclick="show('bulletin',this)"><i class="ti ti-speakerphone"></i> 公告欄</div>
+      <div class="nav-item" data-panel="calendar" onclick="show('calendar',this)"><i class="ti ti-calendar"></i> 行事曆</div>
+      <div class="nav-item" data-panel="todo" onclick="show('todo',this)"><i class="ti ti-checklist"></i> 待辦清單</div>
+      <div class="nav-item" data-panel="album" onclick="show('album',this)"><i class="ti ti-photo"></i> 相簿</div>
+      <div class="nav-item" data-panel="members" onclick="show('members',this)"><i class="ti ti-users"></i> 家庭成員</div>
+      <div class="nav-item" data-panel="memo" onclick="show('memo',this)"><i class="ti ti-notebook"></i> 備忘錄</div>
+      <div class="nav-section">財務 &amp; 採購</div>
+      <div class="nav-item" data-panel="ledger" onclick="show('ledger',this)"><i class="ti ti-wallet"></i> 家庭帳本</div>
+      <div class="nav-item" data-panel="shopping" onclick="show('shopping',this)"><i class="ti ti-shopping-cart"></i> 購物清單</div>
+      <div class="nav-section">系統</div>
+      <div class="nav-item" data-panel="settings" onclick="show('settings',this)"><i class="ti ti-settings"></i> 設定</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-name" id="sidebar-username">—</div>
+        <div class="user-role" id="sidebar-role">成員</div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()"><i class="ti ti-logout"></i> 登出</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title" id="page-title">公告欄</div>
+      <div class="topbar-actions">
+        <div class="sync-dot" id="sync-dot" title="同步狀態"></div>
+        <button class="btn btn-primary" onclick="handleAdd()"><i class="ti ti-plus"></i> 新增</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- 公告欄 -->
+      <div id="panel-bulletin" class="panel active">
+        <div class="grid2">
+          <div class="metric"><div class="metric-label">本月活動</div><div class="metric-val" id="stat-events" style="color:var(--accent)">—</div></div>
+          <div class="metric"><div class="metric-label">待辦事項</div><div class="metric-val" id="stat-todos">—</div></div>
+        </div>
+        <div class="section-head"><div class="section-title">最新公告</div></div>
+        <div id="bulletin-list"></div>
+      </div>
+
+      <!-- 行事曆 -->
+      <div id="panel-calendar" class="panel">
+        <div class="card">
+          <div class="cal-nav">
+            <button class="btn" onclick="calMove(-1)"><i class="ti ti-chevron-left"></i></button>
+            <span id="cal-month-label" style="font-size:14px;font-weight:600"></span>
+            <button class="btn" onclick="calMove(1)"><i class="ti ti-chevron-right"></i></button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+        <div class="section-head"><div class="section-title">即將到來的活動</div></div>
+        <div id="event-list"></div>
+      </div>
+
+      <!-- 待辦清單 -->
+      <div id="panel-todo" class="panel">
+        <div class="section-head"><div class="section-title">家庭待辦事項</div></div>
+        <div id="todo-list"></div>
+      </div>
+
+      <!-- 相簿 -->
+      <div id="panel-album" class="panel">
+        <div class="section-head"><div class="section-title">家庭相簿</div></div>
+        <div class="album-grid" id="album-grid"></div>
+      </div>
+
+      <!-- 家庭成員 -->
+      <div id="panel-members" class="panel">
+        <div class="section-head"><div class="section-title">家庭成員</div></div>
+        <div class="grid4" id="member-grid"></div>
+      </div>
+
+      <!-- 備忘錄 -->
+      <div id="panel-memo" class="panel">
+        <div class="section-head"><div class="section-title">備忘錄</div></div>
+        <div id="memo-list"></div>
+      </div>
+
+      <!-- 家庭帳本 -->
+      <div id="panel-ledger" class="panel">
+        <div class="grid3">
+          <div class="metric"><div class="metric-label">本月收入</div><div class="metric-val amount-in" id="stat-in">$0</div></div>
+          <div class="metric"><div class="metric-label">本月支出</div><div class="metric-val amount-out" id="stat-out">$0</div></div>
+          <div class="metric"><div class="metric-label">結餘</div><div class="metric-val" id="stat-bal">$0</div></div>
+        </div>
+        <div class="section-head"><div class="section-title">支出分類</div></div>
+        <div id="ledger-cats"></div>
+        <div class="section-head" style="margin-top:16px">
+          <div class="section-title">明細記錄</div>
+          <div class="ledger-tabs">
+            <button class="ledger-tab active" onclick="filterLedger('all',this)">全部</button>
+            <button class="ledger-tab" onclick="filterLedger('in',this)">收入</button>
+            <button class="ledger-tab" onclick="filterLedger('out',this)">支出</button>
+          </div>
+        </div>
+        <div id="ledger-list"></div>
+      </div>
+
+      <!-- 購物清單 -->
+      <div id="panel-shopping" class="panel">
+        <div class="section-head"><div class="section-title">購物清單</div></div>
+        <div id="shopping-list"></div>
+      </div>
+
+      <!-- 設定 -->
+      <div id="panel-settings" class="panel">
+        <div class="section-head"><div class="section-title">網站資訊</div></div>
+        <div class="card">
+          <div class="form-group"><label>網站名稱</label><input id="cfg-sitename" value="我家的家"></div>
+          <button class="btn btn-primary" onclick="saveCfg()"><i class="ti ti-device-floppy"></i> 儲存名稱</button>
+        </div>
+        <div class="section-head" style="margin-top:20px">
+          <div class="section-title">帳號管理</div>
+          <button class="btn" onclick="openModal('modal-adduser')" id="btn-adduser"><i class="ti ti-user-plus"></i> 新增帳號</button>
+        </div>
+        <div id="accounts-list"></div>
+        <div class="section-head" style="margin-top:20px"><div class="section-title">修改我的密碼</div></div>
+        <div class="card">
+          <div class="form-group"><label>目前密碼</label><input type="password" id="pw-old" placeholder="輸入目前密碼"></div>
+          <div class="form-group"><label>新密碼</label><input type="password" id="pw-new" placeholder="輸入新密碼"></div>
+          <div class="form-group"><label>確認新密碼</label><input type="password" id="pw-confirm" placeholder="再次輸入新密碼"></div>
+          <button class="btn btn-primary" onclick="changePassword()"><i class="ti ti-lock"></i> 更新密碼</button>
+          <div id="pw-msg" style="font-size:12px;margin-top:8px;min-height:16px"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-bulletin"><div class="modal">
+  <div class="modal-title">新增公告 <span class="modal-close" onclick="closeModal('modal-bulletin')">×</span></div>
+  <div class="form-group"><label>標題</label><input id="b-title" placeholder="公告標題"></div>
+  <div class="form-group"><label>標籤</label><select id="b-tag"><option>重要</option><option>生活</option><option>提醒</option><option>其他</option></select></div>
+  <div class="form-group"><label>內容</label><textarea id="b-body" placeholder="公告內容"></textarea></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveBulletin()">儲存公告</button>
+</div></div>
+
+<div class="modal-overlay" id="modal-calendar"><div class="modal">
+  <div class="modal-title">新增活動 <span class="modal-close" onclick="closeModal('modal-calendar')">×</span></div>
+  <div class="form-group"><label>活動名稱</label><input id="e-name" placeholder="活動名稱"></div>
+  <div class="form-row">
+    <div class="form-group"><label>日期</label><input type="date" id="e-date"></div>
+    <div class="form-group"><label>顏色</label><select id="e-color"><option value="#534AB7">紫色</option><option value="#1D9E75">綠色</option><option value="#D85A30">橘紅</option><option value="#BA7517">琥珀</option></select></div>
+  </div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveEvent()">儲存活動</button>
+</div></div>
+
+<div class="modal-overlay" id="modal-todo"><div class="modal">
+  <div class="modal-title">新增待辦 <span class="modal-close" onclick="closeModal('modal-todo')">×</span></div>
+  <div class="form-group"><label>待辦事項</label><input id="t-text" placeholder="事項描述"></div>
+  <div class="form-row">
+    <div class="form-group"><label>負責人</label><input id="t-who" placeholder="負責人"></div>
+    <div class="form-group"><label>截止日期</label><input type="date" id="t-date"></div>
+  </div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveTodo()">儲存待辦</button>
+</div></div>
+
+<div class="modal-overlay" id="modal-memo"><div class="modal">
+  <div class="modal-title">新增備忘錄 <span class="modal-close" onclick="closeModal('modal-memo')">×</span></div>
+  <div class="form-group"><label>內容</label><textarea id="m-text" placeholder="備忘內容" style="min-height:100px"></textarea></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveMemo()">儲存備忘錄</button>
+</div></div>
+
+<div class="modal-overlay" id="modal-ledger"><div class="modal">
+  <div class="modal-title">新增帳目 <span class="modal-close" onclick="closeModal('modal-ledger')">×</span></div>
+  <div class="form-row">
+    <div class="form-group"><label>類型</label><select id="l-type"><option value="out">支出</option><option value="in">收入</option></select></div>
+    <div class="form-group"><label>分類</label><select id="l-cat"><option>飲食</option><option>交通</option><option>教育</option><option>水電費</option><option>醫療</option><option>娛樂</option><option>收入</option><option>其他</option></select></div>
+  </div>
+  <div class="form-group"><label>項目名稱</label><input id="l-name" placeholder="項目名稱"></div>
+  <div class="form-row">
+    <div class="form-group"><label>金額</label><input type="number" id="l-amount" placeholder="金額" min="0"></div>
+    <div class="form-group"><label>日期</label><input type="date" id="l-date"></div>
+  </div>
+  <div class="form-group"><label>記帳人</label><input id="l-who" placeholder="記帳人"></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveLedger()">儲存帳目</button>
+</div></div>
+
+<div class="modal-overlay" id="modal-shopping"><div class="modal">
+  <div class="modal-title">新增購物品項 <span class="modal-close" onclick="closeModal('modal-shopping')">×</span></div>
+  <div class="form-group"><label>品項名稱</label><input id="s-name" placeholder="品項名稱"></div>
+  <div class="form-group"><label>數量</label><input id="s-qty" placeholder="例：×2"></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveShopping()">新增品項</button>
+</div></div>
+
+<div class="modal-overlay" id="modal-album"><div class="modal">
+  <div class="modal-title">新增相片 <span class="modal-close" onclick="closeModal('modal-album')">×</span></div>
+  <div class="form-group"><label>相片名稱</label><input id="al-name" placeholder="相片名稱"></div>
+  <div class="form-group"><label>上傳圖片（建議小於 500KB）</label><input type="file" id="al-file" accept="image/*"></div>
+  <div id="al-preview" style="margin:8px 0"></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveAlbum()">儲存相片</button>
+</div></div>
+
+<div class="modal-overlay" id="modal-member"><div class="modal">
+  <div class="modal-title">新增家庭成員 <span class="modal-close" onclick="closeModal('modal-member')">×</span></div>
+  <div class="form-group"><label>姓名</label><input id="mb-name" placeholder="成員姓名"></div>
+  <div class="form-group"><label>角色</label><input id="mb-role" placeholder="如：爸爸、媽媽、兒子"></div>
+  <div class="form-group"><label>顏色</label><select id="mb-color"><option value="#EEEDFE|#3C3489">紫色</option><option value="#E1F5EE|#085041">綠色</option><option value="#FAEEDA|#633806">琥珀</option><option value="#FAECE7|#712B13">橘紅</option><option value="#E6F1FB|#0C447C">藍色</option></select></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveMember()">儲存成員</button>
+</div></div>
+
+<div class="modal-overlay" id="modal-adduser"><div class="modal">
+  <div class="modal-title">新增帳號 <span class="modal-close" onclick="closeModal('modal-adduser')">×</span></div>
+  <div class="form-group"><label>帳號（英文/數字）</label><input id="au-user" placeholder="帳號"></div>
+  <div class="form-group"><label>顯示名稱</label><input id="au-name" placeholder="顯示名稱"></div>
+  <div class="form-group"><label>密碼（至少6碼）</label><input type="password" id="au-pass" placeholder="初始密碼"></div>
+  <div class="form-group"><label>身份</label><select id="au-role"><option value="member">一般成員</option><option value="admin">管理員</option></select></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveNewUser()">建立帳號</button>
+  <div id="au-msg" style="font-size:12px;margin-top:8px;min-height:16px"></div>
+</div></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const CFG_KEY = 'family_firebase_cfg';
+let db = null;
+let currentUser = null;
+let unsubscribes = [];
+let ledgerFilter = 'all';
+
+// In-memory cache (updated by Firestore listeners)
+const D = {
+  bulletins:[], events:[], todos:[], ledger:[],
+  shopping:[], memos:[], members:[], album:[],
+  accounts:[], config:{ sitename:'我家的家' }
+};
+
+const BUILT_IN_CFG = {
+  apiKey: "AIzaSyBmNTOzEw1pm3qbuo7yhmNaMr1Vuw6ys34",
+  authDomain: "my-family-home-1b359.firebaseapp.com",
+  projectId: "my-family-home-1b359",
+  storageBucket: "my-family-home-1b359.firebasestorage.app",
+  messagingSenderId: "1076146310055",
+  appId: "1:1076146310055:web:b370250592099daf5b0482"
+};
+function loadCfg(){ return BUILT_IN_CFG; }
+function saveCfgLocal(c){ /* config is built-in */ }
+
+// ══════════════════════════════════════════
+//  SETUP
+// ══════════════════════════════════════════
+function showSetup(){
+  document.getElementById('setup-screen').classList.add('show');
+  const c = loadCfg();
+  if(c){
+    ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId']
+      .forEach(k=>{ const el=document.getElementById('cfg-'+k); if(el&&c[k])el.value=c[k]; });
+  }
+}
+function saveFirebaseConfig(){
+  const keys=['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'];
+  const cfg={};
+  for(const k of keys){
+    const v=document.getElementById('cfg-'+k).value.trim();
+    if(!v){document.getElementById('setup-err').textContent='請填寫所有欄位';return;}
+    cfg[k]=v;
+  }
+  saveCfgLocal(cfg);
+  document.getElementById('setup-screen').classList.remove('show');
+  document.getElementById('setup-err').textContent='';
+  initFirebase(cfg);
+}
+
+// ══════════════════════════════════════════
+//  FIREBASE INIT
+// ══════════════════════════════════════════
+function setLoading(msg){ document.getElementById('loading-msg').textContent=msg; }
+
+async function initFirebase(cfg){
+  setLoading('連線 Firebase…');
+  try{
+    if(firebase.apps.length) firebase.apps[0].delete();
+    firebase.initializeApp(cfg);
+    db = firebase.firestore();
+    // test connection
+    setLoading('讀取資料…');
+    await db.collection('accounts').limit(1).get();
+    await seedIfEmpty();
+    document.getElementById('loading').style.display='none';
+    document.getElementById('login-screen').classList.add('show');
+    // load sitename for login screen
+    const cfgDoc = await db.collection('config').doc('site').get();
+    if(cfgDoc.exists){ const sn=cfgDoc.data().sitename||'我家的家'; document.getElementById('login-site-title').textContent=sn; }
+  }catch(err){
+    document.getElementById('loading').style.display='none';
+    alert('Firebase 連線失敗：'+err.message+'\n請確認設定是否正確，或 Firestore 是否已啟用。');
+    showSetup();
+  }
+}
+
+async function seedIfEmpty(){
+  const snap = await db.collection('accounts').get();
+  if(!snap.empty) return;
+  const batch = db.batch();
+  const today = nowDate();
+  // accounts
+  [{username:'admin',password:'admin1234',name:'管理員',role:'admin'},
+   {username:'dad',  password:'dad1234',  name:'爸爸',  role:'member'},
+   {username:'mom',  password:'mom1234',  name:'媽媽',  role:'member'}]
+  .forEach(a=>batch.set(db.collection('accounts').doc(a.username),a));
+  // config
+  batch.set(db.collection('config').doc('site'),{sitename:'我家的家'});
+  // bulletins
+  batch.set(db.collection('bulletins').doc(),{title:'歡迎使用我家的家',tag:'重要',body:'這是家庭專屬網頁，請各成員登入後開始使用。',author:'管理員',date:today,createdAt:ts()});
+  // members
+  [{name:'陳大明',role:'爸爸',bg:'#EEEDFE',fg:'#3C3489'},
+   {name:'林小芬',role:'媽媽',bg:'#E1F5EE',fg:'#085041'},
+   {name:'陳小明',role:'兒子',bg:'#FAEEDA',fg:'#633806'},
+   {name:'陳小玲',role:'女兒',bg:'#FAECE7',fg:'#712B13'}]
+  .forEach(m=>batch.set(db.collection('members').doc(),m));
+  // events
+  [{name:'爸媽結婚紀念日',date:monthDate(26),color:'#1D9E75'},
+   {name:'小明月考',date:monthDate(29),color:'#534AB7'}]
+  .forEach(e=>batch.set(db.collection('events').doc(),{...e,createdAt:ts()}));
+  // todos
+  [{text:'預訂宜蘭民宿',who:'爸爸',date:'',done:false},
+   {text:'買洗碗精、衛生紙',who:'媽媽',date:'',done:false}]
+  .forEach(t=>batch.set(db.collection('todos').doc(),{...t,createdAt:ts()}));
+  // ledger
+  const lm=new Date();const ym=`${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,'0')}`;
+  [{type:'in',cat:'收入',name:'爸爸薪資',amount:55000,date:ym+'-20',who:'爸爸'},
+   {type:'in',cat:'收入',name:'媽媽薪資',amount:30000,date:ym+'-10',who:'媽媽'},
+   {type:'out',cat:'飲食',name:'超市採購',amount:2340,date:ym+'-24',who:'媽媽'},
+   {type:'out',cat:'教育',name:'小明補習費',amount:6000,date:ym+'-15',who:'媽媽'},
+   {type:'out',cat:'交通',name:'捷運月票',amount:1280,date:ym+'-18',who:'爸爸'},
+   {type:'out',cat:'水電費',name:'電費',amount:2340,date:ym+'-05',who:'爸爸'}]
+  .forEach(x=>batch.set(db.collection('ledger').doc(),{...x,createdAt:ts()}));
+  // memos
+  [{text:'網路費每月5號自動扣款，若扣款失敗記得手動補繳。',date:today},
+   {text:'房東電話：0933-111-222，維修電話：0955-333-444。',date:today}]
+  .forEach(m=>batch.set(db.collection('memos').doc(),{...m,createdAt:ts()}));
+  await batch.commit();
+}
+
+// ══════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════
+async function doLogin(){
+  const u=document.getElementById('login-user').value.trim();
+  const p=document.getElementById('login-pass').value;
+  document.getElementById('login-err').textContent='';
+  try{
+    const snap=await db.collection('accounts').where('username','==',u).where('password','==',p).get();
+    if(snap.empty){document.getElementById('login-err').textContent='帳號或密碼錯誤';return;}
+    currentUser={...snap.docs[0].data(),docId:snap.docs[0].id};
+    document.getElementById('login-screen').classList.remove('show');
+    document.getElementById('app').style.display='block';
+    document.getElementById('sidebar-username').textContent=currentUser.name;
+    document.getElementById('sidebar-role').textContent=currentUser.role==='admin'?'管理員':'成員';
+    document.getElementById('btn-adduser').style.display=currentUser.role==='admin'?'':'none';
+    const nd=new Date();
+    document.getElementById('sidebar-date').textContent=`${nd.getFullYear()}/${nd.getMonth()+1}/${nd.getDate()}`;
+    startListeners();
+  }catch(e){document.getElementById('login-err').textContent='登入失敗：'+e.message;}
+}
+document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus()});
+
+function doLogout(){
+  unsubscribes.forEach(u=>u());unsubscribes=[];
+  currentUser=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').classList.add('show');
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+}
+
+// ══════════════════════════════════════════
+//  REALTIME LISTENERS
+// ══════════════════════════════════════════
+function syncDot(state){ const d=document.getElementById('sync-dot'); d.className='sync-dot '+state; }
+
+function startListeners(){
+  syncDot('syncing');
+  const cols=['bulletins','events','todos','ledger','shopping','memos','members','album','accounts'];
+  let loaded=0;
+  cols.forEach(col=>{
+    const unsub=db.collection(col).onSnapshot(snap=>{
+      D[col]=snap.docs.map(d=>({...d.data(),_id:d.id}));
+      renderForCol(col);
+      loaded++;
+      if(loaded>=cols.length) syncDot('synced');
+    },err=>{ console.error(col,err); syncDot(''); });
+    unsubscribes.push(unsub);
+  });
+  // config
+  const unsub2=db.collection('config').doc('site').onSnapshot(doc=>{
+    if(doc.exists){ D.config=doc.data(); applySiteName(D.config.sitename||'我家的家'); }
+  });
+  unsubscribes.push(unsub2);
+}
+
+function renderForCol(col){
+  const map={bulletins:renderBulletin,events:()=>{renderCalendar();renderBulletin();},
+    todos:()=>{renderTodo();renderBulletin();},ledger:renderLedger,
+    shopping:renderShopping,memos:renderMemo,members:renderMembers,
+    album:renderAlbum,accounts:renderSettings};
+  if(map[col])map[col]();
+}
+
+// ══════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════
+const TITLES={bulletin:'公告欄',calendar:'行事曆',todo:'待辦清單',album:'相簿',members:'家庭成員',memo:'備忘錄',ledger:'家庭帳本',shopping:'購物清單',settings:'設定'};
+let currentPanel='bulletin';
+function show(id,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  (el||document.querySelector(`[data-panel="${id}"]`)).classList.add('active');
+  document.getElementById('page-title').textContent=TITLES[id];
+  currentPanel=id;
+}
+function handleAdd(){
+  const map={bulletin:'modal-bulletin',calendar:'modal-calendar',todo:'modal-todo',
+    memo:'modal-memo',ledger:'modal-ledger',shopping:'modal-shopping',
+    album:'modal-album',members:'modal-member'};
+  document.getElementById('e-date').value=nowDate();
+  document.getElementById('t-date').value=nowDate();
+  document.getElementById('l-date').value=nowDate();
+  if(map[currentPanel])openModal(map[currentPanel]);
+}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+
+// ══════════════════════════════════════════
+//  BULLETIN
+// ══════════════════════════════════════════
+function renderBulletin(){
+  const now=new Date();const m=now.getMonth()+1,y=now.getFullYear();
+  const monthEvents=D.events.filter(e=>{const d=new Date(e.date);return d.getMonth()+1===m&&d.getFullYear()===y});
+  document.getElementById('stat-events').textContent=monthEvents.length;
+  document.getElementById('stat-todos').textContent=D.todos.filter(t=>!t.done).length;
+  const tagClass={重要:'tag-purple',生活:'tag-teal',提醒:'tag-amber',其他:'tag-red'};
+  const sorted=[...D.bulletins].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  document.getElementById('bulletin-list').innerHTML=sorted.length?sorted.map(b=>`
+    <div class="card">
+      <span class="tag ${tagClass[b.tag]||'tag-amber'}">${esc(b.tag)}</span>
+      <div class="card-title">${esc(b.title)}</div>
+      <div class="card-meta">${esc(b.author)} · ${fmtDate(b.date)}</div>
+      <div class="card-body">${esc(b.body)}</div>
+      ${isAdmin()?`<div style="text-align:right;margin-top:8px"><span class="del-btn" onclick="del('bulletins','${b._id}',renderBulletin)"><i class="ti ti-trash"></i> 刪除</span></div>`:''}
+    </div>`).join(''):'<div class="empty"><i class="ti ti-speakerphone"></i>尚無公告</div>';
+}
+async function saveBulletin(){
+  const title=document.getElementById('b-title').value.trim();
+  const body=document.getElementById('b-body').value.trim();
+  if(!title||!body)return;
+  syncDot('syncing');
+  await db.collection('bulletins').add({title,tag:document.getElementById('b-tag').value,body,author:currentUser.name,date:nowDate(),createdAt:ts()});
+  document.getElementById('b-title').value='';document.getElementById('b-body').value='';
+  closeModal('modal-bulletin');syncDot('synced');
+}
+
+// ══════════════════════════════════════════
+//  CALENDAR
+// ══════════════════════════════════════════
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
+function renderCalendar(){
+  document.getElementById('cal-month-label').textContent=`${calYear} 年 ${calMonth+1} 月`;
+  const first=new Date(calYear,calMonth,1).getDay();
+  const days=new Date(calYear,calMonth+1,0).getDate();
+  const now=new Date();
+  let html='';
+  ['日','一','二','三','四','五','六'].forEach(d=>html+=`<div class="cal-dname">${d}</div>`);
+  for(let i=0;i<first;i++)html+=`<div class="cal-day other"></div>`;
+  for(let d=1;d<=days;d++){
+    const ds=`${calYear}-${pad(calMonth+1)}-${pad(d)}`;
+    const isT=d===now.getDate()&&calMonth===now.getMonth()&&calYear===now.getFullYear();
+    const hasE=D.events.some(e=>e.date===ds);
+    html+=`<div class="cal-day${isT?' today':''}">${d}${hasE?'<div class="dot"></div>':''}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML=html;
+  const sorted=[...D.events].sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('event-list').innerHTML=sorted.length?sorted.map(e=>`
+    <div class="event-item">
+      <div class="event-dot" style="background:${e.color}"></div>
+      <div style="flex:1"><div style="font-size:13px">${esc(e.name)}</div><div style="font-size:11px;color:var(--text3)">${fmtDate(e.date)}</div></div>
+      ${isAdmin()?`<span class="del-btn" onclick="del('events','${e._id}')"><i class="ti ti-trash"></i></span>`:''}
+    </div>`).join(''):'<div class="empty"><i class="ti ti-calendar"></i>尚無活動</div>';
+}
+function calMove(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+async function saveEvent(){
+  const name=document.getElementById('e-name').value.trim();
+  const date=document.getElementById('e-date').value;
+  if(!name||!date)return;
+  syncDot('syncing');
+  await db.collection('events').add({name,date,color:document.getElementById('e-color').value,createdAt:ts()});
+  document.getElementById('e-name').value='';closeModal('modal-calendar');syncDot('synced');
+}
+
+// ══════════════════════════════════════════
+//  TODO
+// ══════════════════════════════════════════
+function renderTodo(){
+  const sorted=[...D.todos].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  document.getElementById('todo-list').innerHTML=sorted.length?sorted.map(t=>`
+    <div class="todo-item">
+      <div class="chk${t.done?' done':''}" onclick="toggleTodo('${t._id}',${!t.done})">${t.done?'<i class="ti ti-check" style="font-size:11px;color:#fff"></i>':''}</div>
+      <div style="flex:1"><div class="todo-text${t.done?' done':''}">${esc(t.text)}</div>${t.who?`<div class="todo-meta">${esc(t.who)}${t.date?' · '+fmtDate(t.date):''}</div>`:''}</div>
+      <span class="del-btn" onclick="del('todos','${t._id}')"><i class="ti ti-trash"></i></span>
+    </div>`).join(''):'<div class="empty"><i class="ti ti-checklist"></i>尚無待辦事項</div>';
+}
+async function saveTodo(){
+  const text=document.getElementById('t-text').value.trim();
+  if(!text)return;
+  syncDot('syncing');
+  await db.collection('todos').add({text,who:document.getElementById('t-who').value.trim(),date:document.getElementById('t-date').value,done:false,createdAt:ts()});
+  document.getElementById('t-text').value='';document.getElementById('t-who').value='';
+  closeModal('modal-todo');syncDot('synced');
+}
+async function toggleTodo(id,done){ syncDot('syncing'); await db.collection('todos').doc(id).update({done}); syncDot('synced'); }
+
+// ══════════════════════════════════════════
+//  LEDGER
+// ══════════════════════════════════════════
+function renderLedger(){
+  const now=new Date();const m=now.getMonth()+1,y=now.getFullYear();
+  const monthly=D.ledger.filter(x=>{const d=new Date(x.date);return d.getMonth()+1===m&&d.getFullYear()===y});
+  const totalIn=monthly.filter(x=>x.type==='in').reduce((s,x)=>s+x.amount,0);
+  const totalOut=monthly.filter(x=>x.type==='out').reduce((s,x)=>s+x.amount,0);
+  document.getElementById('stat-in').textContent='$'+totalIn.toLocaleString();
+  document.getElementById('stat-out').textContent='$'+totalOut.toLocaleString();
+  const bal=totalIn-totalOut;
+  const bEl=document.getElementById('stat-bal');
+  bEl.textContent=(bal>=0?'$':'−$')+Math.abs(bal).toLocaleString();
+  bEl.style.color=bal>=0?'var(--text)':'var(--red)';
+  // categories
+  const cats={};
+  monthly.filter(x=>x.type==='out').forEach(x=>{cats[x.cat]=(cats[x.cat]||0)+x.amount;});
+  const catColors=['#534AB7','#1D9E75','#D85A30','#BA7517','#185FA5','#888780'];
+  const entries=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  const maxAmt=entries[0]?entries[0][1]:1;
+  document.getElementById('ledger-cats').innerHTML=entries.length?entries.map(([cat,amt],i)=>`
+    <div class="cat-row"><div class="cat-label">${esc(cat)}</div>
+    <div class="cat-bar"><div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(amt/maxAmt*100)}%;background:${catColors[i%catColors.length]}"></div></div></div>
+    <div class="cat-amt">$${amt.toLocaleString()}</div></div>`).join(''):'<div style="font-size:13px;color:var(--text3);padding:8px 0">本月尚無支出記錄</div>';
+  // list
+  const iconMap={飲食:'ti-shopping-bag',交通:'ti-bus',教育:'ti-school',水電費:'ti-bolt',收入:'ti-cash',醫療:'ti-stethoscope',娛樂:'ti-device-gamepad',其他:'ti-dots'};
+  const filtered=D.ledger.filter(x=>ledgerFilter==='all'||x.type===ledgerFilter);
+  const sorted=[...filtered].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('ledger-list').innerHTML=sorted.length?sorted.map(x=>`
+    <div class="ledger-row">
+      <div class="ledger-icon" style="background:${x.type==='in'?'var(--green-light)':'var(--accent-light)'}"><i class="ti ${iconMap[x.cat]||'ti-dots'}" style="color:${x.type==='in'?'var(--green)':'var(--accent)'};font-size:14px"></i></div>
+      <div style="flex:1"><div class="ledger-name">${esc(x.name)}</div><div class="ledger-sub">${esc(x.who||'')} · ${fmtDate(x.date)} · ${esc(x.cat)}</div></div>
+      <div class="${x.type==='in'?'amount-in':'amount-out'}">${x.type==='in'?'+':'-'}$${x.amount.toLocaleString()}</div>
+      <span class="del-btn" onclick="del('ledger','${x._id}')"><i class="ti ti-trash"></i></span>
+    </div>`).join(''):'<div class="empty"><i class="ti ti-wallet"></i>尚無帳目記錄</div>';
+}
+function filterLedger(type,el){ ledgerFilter=type; document.querySelectorAll('.ledger-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); renderLedger(); }
+async function saveLedger(){
+  const name=document.getElementById('l-name').value.trim();
+  const amount=parseFloat(document.getElementById('l-amount').value);
+  if(!name||isNaN(amount)||amount<=0)return;
+  syncDot('syncing');
+  await db.collection('ledger').add({type:document.getElementById('l-type').value,cat:document.getElementById('l-cat').value,name,amount,date:document.getElementById('l-date').value,who:document.getElementById('l-who').value.trim(),createdAt:ts()});
+  document.getElementById('l-name').value='';document.getElementById('l-amount').value='';document.getElementById('l-who').value='';
+  closeModal('modal-ledger');syncDot('synced');
+}
+
+// ══════════════════════════════════════════
+//  SHOPPING
+// ══════════════════════════════════════════
+function renderShopping(){
+  const sorted=[...D.shopping].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  document.getElementById('shopping-list').innerHTML=sorted.length?sorted.map(s=>`
+    <div class="shop-item">
+      <div class="chk${s.done?' done':''}" onclick="toggleShop('${s._id}',${!s.done})">${s.done?'<i class="ti ti-check" style="font-size:11px;color:#fff"></i>':''}</div>
+      <div class="todo-text${s.done?' done':''}" style="flex:1">${esc(s.name)}</div>
+      <div class="shop-qty">${esc(s.qty)}</div>
+      <span class="del-btn" onclick="del('shopping','${s._id}')"><i class="ti ti-trash"></i></span>
+    </div>`).join(''):'<div class="empty"><i class="ti ti-shopping-cart"></i>購物清單是空的</div>';
+}
+async function saveShopping(){
+  const name=document.getElementById('s-name').value.trim();
+  if(!name)return;
+  syncDot('syncing');
+  await db.collection('shopping').add({name,qty:document.getElementById('s-qty').value.trim()||'×1',done:false,createdAt:ts()});
+  document.getElementById('s-name').value='';document.getElementById('s-qty').value='';
+  closeModal('modal-shopping');syncDot('synced');
+}
+async function toggleShop(id,done){ syncDot('syncing'); await db.collection('shopping').doc(id).update({done}); syncDot('synced'); }
+
+// ══════════════════════════════════════════
+//  MEMO
+// ══════════════════════════════════════════
+function renderMemo(){
+  const sorted=[...D.memos].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  document.getElementById('memo-list').innerHTML=sorted.length?sorted.map(m=>`
+    <div class="memo-card">
+      <div class="memo-text">${esc(m.text)}</div>
+      <div class="memo-date">${fmtDate(m.date)}</div>
+      <span class="del-btn" style="position:absolute;top:10px;right:10px" onclick="del('memos','${m._id}')"><i class="ti ti-trash"></i></span>
+    </div>`).join(''):'<div class="empty"><i class="ti ti-notebook"></i>尚無備忘錄</div>';
+}
+async function saveMemo(){
+  const text=document.getElementById('m-text').value.trim();
+  if(!text)return;
+  syncDot('syncing');
+  await db.collection('memos').add({text,date:nowDate(),createdAt:ts()});
+  document.getElementById('m-text').value='';closeModal('modal-memo');syncDot('synced');
+}
+
+// ══════════════════════════════════════════
+//  MEMBERS
+// ══════════════════════════════════════════
+function renderMembers(){
+  document.getElementById('member-grid').innerHTML=D.members.length?D.members.map(m=>`
+    <div class="member-card">
+      <div class="avatar" style="background:${m.bg};color:${m.fg}">${m.name.charAt(0)}</div>
+      <div class="member-name" style="font-size:13px;font-weight:600">${esc(m.name)}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">${esc(m.role)}</div>
+      ${isAdmin()?`<span class="del-btn" onclick="del('members','${m._id}')" style="font-size:11px;display:inline-block;margin-top:6px"><i class="ti ti-trash"></i></span>`:''}
+    </div>`).join(''):'<div class="empty"><i class="ti ti-users"></i>尚無成員</div>';
+}
+async function saveMember(){
+  const name=document.getElementById('mb-name').value.trim();
+  const role=document.getElementById('mb-role').value.trim();
+  if(!name||!role)return;
+  const [bg,fg]=document.getElementById('mb-color').value.split('|');
+  syncDot('syncing');
+  await db.collection('members').add({name,role,bg,fg,createdAt:ts()});
+  document.getElementById('mb-name').value='';document.getElementById('mb-role').value='';
+  closeModal('modal-member');syncDot('synced');
+}
+
+// ══════════════════════════════════════════
+//  ALBUM
+// ══════════════════════════════════════════
+function renderAlbum(){
+  const grid=document.getElementById('album-grid');
+  grid.innerHTML='';
+  D.album.forEach(a=>{
+    const d=document.createElement('div');d.className='photo-card';
+    if(a.src){const img=document.createElement('img');img.src=a.src;d.appendChild(img);}
+    else{d.innerHTML=`<i class="ti ti-photo" style="font-size:28px"></i>`;}
+    const lbl=document.createElement('div');lbl.className='photo-label';lbl.textContent=a.name;d.appendChild(lbl);
+    if(isAdmin()){const db2=document.createElement('span');db2.className='del-btn';db2.style='position:absolute;top:6px;right:6px;background:rgba(255,255,255,.85);border-radius:4px';db2.innerHTML='<i class="ti ti-trash"></i>';db2.onclick=e=>{e.stopPropagation();del('album',a._id)};d.appendChild(db2);}
+    grid.appendChild(d);
+  });
+  const add=document.createElement('div');add.className='photo-card photo-add';add.innerHTML=`<i class="ti ti-plus" style="font-size:28px"></i><span>新增相片</span>`;add.onclick=()=>openModal('modal-album');
+  grid.appendChild(add);
+}
+document.getElementById('al-file').addEventListener('change',function(){
+  const file=this.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const prev=document.getElementById('al-preview');
+    prev.innerHTML=`<img src="${e.target.result}" style="max-width:100%;max-height:120px;border-radius:6px">`;
+  };reader.readAsDataURL(file);
+});
+async function saveAlbum(){
+  const name=document.getElementById('al-name').value.trim();if(!name)return;
+  const file=document.getElementById('al-file').files[0];
+  const processAndSave=async(src)=>{
+    syncDot('syncing');
+    await db.collection('album').add({name,src:src||'',createdAt:ts()});
+    document.getElementById('al-name').value='';document.getElementById('al-file').value='';
+    document.getElementById('al-preview').innerHTML='';
+    closeModal('modal-album');syncDot('synced');
+  };
+  if(file){
+    // resize to max 600px
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=600;let w=img.width,h=img.height;
+      if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      processAndSave(c.toDataURL('image/jpeg',0.8));
+    };
+    img.src=URL.createObjectURL(file);
+  } else { processAndSave(''); }
+}
+
+// ══════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════
+function renderSettings(){
+  if(D.config.sitename) document.getElementById('cfg-sitename').value=D.config.sitename;
+  const sorted=[...D.accounts].sort((a,b)=>a.username.localeCompare(b.username));
+  document.getElementById('accounts-list').innerHTML=sorted.map(a=>`
+    <div class="account-row">
+      <div class="avatar" style="width:34px;height:34px;min-width:34px;font-size:13px;background:var(--accent-light);color:var(--accent-dark)">${a.name.charAt(0)}</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:500">${esc(a.name)} <span style="font-size:11px;color:var(--text3)">(${esc(a.username)})</span></div><div style="font-size:11px;color:var(--text2)">${a.role==='admin'?'管理員':'一般成員'}</div></div>
+      <span class="badge ${a.role==='admin'?'badge-admin':'badge-member'}">${a.role==='admin'?'管理員':'成員'}</span>
+      ${isAdmin()&&a.username!==currentUser.username?`<span class="del-btn" onclick="delAccount('${a._id}','${a.username}')"><i class="ti ti-trash"></i></span>`:''}
+    </div>`).join('');
+}
+async function saveCfg(){
+  const name=document.getElementById('cfg-sitename').value.trim()||'我家的家';
+  syncDot('syncing');
+  await db.collection('config').doc('site').set({sitename:name});
+  syncDot('synced');alert('網站名稱已更新');
+}
+function applySiteName(name){
+  document.getElementById('sidebar-sitename').innerHTML=`<i class="ti ti-home"></i> ${esc(name)}`;
+  document.title=name;document.getElementById('login-site-title').textContent=name;
+}
+async function changePassword(){
+  const old=document.getElementById('pw-old').value;
+  const nw=document.getElementById('pw-new').value;
+  const cf=document.getElementById('pw-confirm').value;
+  const msg=document.getElementById('pw-msg');
+  if(!old||!nw||!cf){msg.style.color='var(--red)';msg.textContent='請填寫所有欄位';return;}
+  if(nw!==cf){msg.style.color='var(--red)';msg.textContent='新密碼與確認密碼不一致';return;}
+  if(nw.length<6){msg.style.color='var(--red)';msg.textContent='密碼至少需6個字元';return;}
+  const acc=D.accounts.find(a=>a.username===currentUser.username);
+  if(!acc||acc.password!==old){msg.style.color='var(--red)';msg.textContent='目前密碼錯誤';return;}
+  syncDot('syncing');
+  await db.collection('accounts').doc(acc._id).update({password:nw});
+  currentUser.password=nw;
+  document.getElementById('pw-old').value='';document.getElementById('pw-new').value='';document.getElementById('pw-confirm').value='';
+  msg.style.color='var(--green)';msg.textContent='密碼已成功更新';syncDot('synced');
+  setTimeout(()=>msg.textContent='',3000);
+}
+async function saveNewUser(){
+  const username=document.getElementById('au-user').value.trim();
+  const name=document.getElementById('au-name').value.trim();
+  const password=document.getElementById('au-pass').value;
+  const role=document.getElementById('au-role').value;
+  const msg=document.getElementById('au-msg');
+  if(!username||!name||!password){msg.style.color='var(--red)';msg.textContent='請填寫所有欄位';return;}
+  if(password.length<6){msg.style.color='var(--red)';msg.textContent='密碼至少需6個字元';return;}
+  if(D.accounts.find(a=>a.username===username)){msg.style.color='var(--red)';msg.textContent='帳號已存在';return;}
+  syncDot('syncing');
+  await db.collection('accounts').doc(username).set({username,name,password,role,createdAt:ts()});
+  document.getElementById('au-user').value='';document.getElementById('au-name').value='';document.getElementById('au-pass').value='';
+  msg.style.color='var(--green)';msg.textContent='帳號建立成功';syncDot('synced');
+  setTimeout(()=>{msg.textContent='';closeModal('modal-adduser');},1200);
+}
+async function delAccount(docId,username){
+  if(!confirm(`確定刪除帳號 ${username}？`))return;
+  syncDot('syncing');await db.collection('accounts').doc(docId).delete();syncDot('synced');
+}
+
+// ══════════════════════════════════════════
+//  GENERIC DELETE
+// ══════════════════════════════════════════
+async function del(col,id,cb){
+  if(!confirm('確定刪除？'))return;
+  syncDot('syncing');await db.collection(col).doc(id).delete();syncDot('synced');
+  if(cb)cb();
+}
+
+// ══════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════
+function isAdmin(){ return currentUser&&currentUser.role==='admin'; }
+function ts(){ return firebase.firestore.FieldValue.serverTimestamp(); }
+function nowDate(){ return new Date().toISOString().slice(0,10); }
+function monthDate(d){ const n=new Date();n.setDate(d);return n.toISOString().slice(0,10); }
+function fmtDate(s){ if(!s)return ''; const d=new Date(s+'T00:00:00'); return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`; }
+function pad(n){ return String(n).padStart(2,'0'); }
+function esc(s){ if(!s)return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══════════════════════════════════════════
+//  STARTUP
+// ══════════════════════════════════════════
+(function start(){
+  const cfg=loadCfg();
+  if(cfg&&cfg.apiKey&&!cfg.apiKey.startsWith('YOUR')){
+    initFirebase(cfg);
+  } else {
+    document.getElementById('loading').style.display='none';
+    showSetup();
+  }
+})();
+</script>
+</body>
+</html>
