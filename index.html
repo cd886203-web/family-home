@@ -401,22 +401,57 @@ textarea{resize:vertical;min-height:72px}
 
       <!-- 家庭帳本 -->
       <div id="panel-ledger" class="panel">
-        <div class="grid3">
+        <!-- 月份切換 + 檢視切換 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="btn" onclick="ledgerMonthMove(-1)"><i class="ti ti-chevron-left"></i></button>
+            <span id="ledger-month-label" style="font-size:14px;font-weight:600;min-width:80px;text-align:center"></span>
+            <button class="btn" onclick="ledgerMonthMove(1)"><i class="ti ti-chevron-right"></i></button>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn" id="view-chart-btn" onclick="setLedgerView('chart',this)" style="background:var(--accent);color:#fff;border-color:var(--accent)"><i class="ti ti-chart-donut"></i> 圖表</button>
+            <button class="btn" id="view-list-btn"  onclick="setLedgerView('list',this)"><i class="ti ti-list"></i> 明細</button>
+          </div>
+        </div>
+
+        <!-- 統計卡 -->
+        <div class="grid4" style="margin-bottom:14px">
           <div class="metric"><div class="metric-label">本月收入</div><div class="metric-val amount-in" id="stat-in">$0</div></div>
           <div class="metric"><div class="metric-label">本月支出</div><div class="metric-val amount-out" id="stat-out">$0</div></div>
           <div class="metric"><div class="metric-label">結餘</div><div class="metric-val" id="stat-bal">$0</div></div>
+          <div class="metric"><div class="metric-label">消費筆數</div><div class="metric-val" id="stat-count">0</div></div>
         </div>
-        <div class="section-head"><div class="section-title">支出分類</div></div>
-        <div id="ledger-cats"></div>
-        <div class="section-head" style="margin-top:16px">
-          <div class="section-title">明細記錄</div>
-          <div class="ledger-tabs">
-            <button class="ledger-tab active" onclick="filterLedger('all',this)">全部</button>
-            <button class="ledger-tab" onclick="filterLedger('in',this)">收入</button>
-            <button class="ledger-tab" onclick="filterLedger('out',this)">支出</button>
+
+        <!-- 圖表檢視 -->
+        <div id="ledger-view-chart">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" id="ledger-charts-grid">
+            <div class="card" style="padding:14px">
+              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px">類別分佈</div>
+              <div style="position:relative;height:200px"><canvas id="donut-chart"></canvas></div>
+              <div id="donut-legend" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+            <div class="card" style="padding:14px">
+              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px">各類別金額</div>
+              <div style="position:relative;height:200px"><canvas id="bar-chart"></canvas></div>
+            </div>
           </div>
+          <div class="section-head"><div class="section-title">消費明細</div></div>
+          <div id="ledger-cat-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+          <div id="ledger-list"></div>
         </div>
-        <div id="ledger-list"></div>
+
+        <!-- 純明細檢視 -->
+        <div id="ledger-view-list" style="display:none">
+          <div class="section-head">
+            <div class="section-title">明細記錄</div>
+            <div class="ledger-tabs">
+              <button class="ledger-tab active" onclick="filterLedger('all',this)">全部</button>
+              <button class="ledger-tab" onclick="filterLedger('in',this)">收入</button>
+              <button class="ledger-tab" onclick="filterLedger('out',this)">支出</button>
+            </div>
+          </div>
+          <div id="ledger-list-only"></div>
+        </div>
       </div>
 
       <!-- 購物清單 -->
@@ -591,6 +626,8 @@ textarea{resize:vertical;min-height:72px}
   <button class="mob-nav-item" id="mob-more-btn"      onclick="toggleMobMenu(this)"><i class="ti ti-dots"></i><span>更多</span></button>
 </nav>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -937,40 +974,148 @@ async function toggleTodo(id,done){ syncDot('syncing'); await db.collection('tod
 // ══════════════════════════════════════════
 //  LEDGER
 // ══════════════════════════════════════════
+// ── 帳本月份導覽 ──
+let ledgerYear=new Date().getFullYear(), ledgerMonth=new Date().getMonth()+1;
+function ledgerMonthMove(d){
+  ledgerMonth+=d;
+  if(ledgerMonth>12){ledgerMonth=1;ledgerYear++;}
+  if(ledgerMonth<0){ledgerMonth=12;ledgerYear--;}
+  renderLedger();
+}
+
+// ── 圖表 / 明細 切換 ──
+let ledgerView='chart';
+let ledgerCatFilter='all';
+let donutChartInst=null, barChartInst=null;
+
+function setLedgerView(mode,el){
+  ledgerView=mode;
+  document.getElementById('ledger-view-chart').style.display=mode==='chart'?'block':'none';
+  document.getElementById('ledger-view-list').style.display=mode==='list'?'block':'none';
+  document.getElementById('view-chart-btn').style.cssText=mode==='chart'?'background:var(--accent);color:#fff;border-color:var(--accent)':'';
+  document.getElementById('view-list-btn').style.cssText=mode==='list'?'background:var(--accent);color:#fff;border-color:var(--accent)':'';
+  renderLedger();
+}
+
+const CAT_COLORS=['#534AB7','#1D9E75','#D85A30','#BA7517','#185FA5','#639922','#D4537E','#888780'];
+const ICON_MAP={飲食:'ti-shopping-bag',交通:'ti-bus',教育:'ti-school',水電費:'ti-bolt',收入:'ti-cash',醫療:'ti-stethoscope',娛樂:'ti-device-gamepad',購物:'ti-shirt',其他:'ti-dots'};
+
 function renderLedger(){
-  const now=new Date();const m=now.getMonth()+1,y=now.getFullYear();
-  const monthly=D.ledger.filter(x=>{const d=new Date(x.date);return d.getMonth()+1===m&&d.getFullYear()===y});
+  const label=document.getElementById('ledger-month-label');
+  if(label) label.textContent=`${ledgerYear} 年 ${ledgerMonth} 月`;
+
+  const monthly=D.ledger.filter(x=>{
+    const d=new Date(x.date+'T00:00:00');
+    return d.getMonth()+1===ledgerMonth && d.getFullYear()===ledgerYear;
+  });
+  const outList=monthly.filter(x=>x.type==='out');
   const totalIn=monthly.filter(x=>x.type==='in').reduce((s,x)=>s+x.amount,0);
-  const totalOut=monthly.filter(x=>x.type==='out').reduce((s,x)=>s+x.amount,0);
+  const totalOut=outList.reduce((s,x)=>s+x.amount,0);
+  const bal=totalIn-totalOut;
+
   document.getElementById('stat-in').textContent='$'+totalIn.toLocaleString();
   document.getElementById('stat-out').textContent='$'+totalOut.toLocaleString();
-  const bal=totalIn-totalOut;
+  document.getElementById('stat-count').textContent=outList.length+' 筆';
   const bEl=document.getElementById('stat-bal');
   bEl.textContent=(bal>=0?'$':'−$')+Math.abs(bal).toLocaleString();
   bEl.style.color=bal>=0?'var(--text)':'var(--red)';
-  // categories
-  const cats={};
-  monthly.filter(x=>x.type==='out').forEach(x=>{cats[x.cat]=(cats[x.cat]||0)+x.amount;});
-  const catColors=['#534AB7','#1D9E75','#D85A30','#BA7517','#185FA5','#888780'];
-  const entries=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
-  const maxAmt=entries[0]?entries[0][1]:1;
-  document.getElementById('ledger-cats').innerHTML=entries.length?entries.map(([cat,amt],i)=>`
-    <div class="cat-row"><div class="cat-label">${esc(cat)}</div>
-    <div class="cat-bar"><div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(amt/maxAmt*100)}%;background:${catColors[i%catColors.length]}"></div></div></div>
-    <div class="cat-amt">$${amt.toLocaleString()}</div></div>`).join(''):'<div style="font-size:13px;color:var(--text3);padding:8px 0">本月尚無支出記錄</div>';
-  // list
-  const iconMap={飲食:'ti-shopping-bag',交通:'ti-bus',教育:'ti-school',水電費:'ti-bolt',收入:'ti-cash',醫療:'ti-stethoscope',娛樂:'ti-device-gamepad',其他:'ti-dots'};
-  const filtered=D.ledger.filter(x=>ledgerFilter==='all'||x.type===ledgerFilter);
-  const sorted=[...filtered].sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('ledger-list').innerHTML=sorted.length?sorted.map(x=>`
-    <div class="ledger-row">
-      <div class="ledger-icon" style="background:${x.type==='in'?'var(--green-light)':'var(--accent-light)'}"><i class="ti ${iconMap[x.cat]||'ti-dots'}" style="color:${x.type==='in'?'var(--green)':'var(--accent)'};font-size:14px"></i></div>
-      <div style="flex:1"><div class="ledger-name">${esc(x.name)}</div><div class="ledger-sub">${esc(x.who||'')} · ${fmtDate(x.date)} · ${esc(x.cat)}</div></div>
-      <div class="${x.type==='in'?'amount-in':'amount-out'}">${x.type==='in'?'+':'-'}$${x.amount.toLocaleString()}</div>
-      <span class="del-btn" onclick="del('ledger','${x._id}')"><i class="ti ti-trash"></i></span>
-    </div>`).join(''):'<div class="empty"><i class="ti ti-wallet"></i>尚無帳目記錄</div>';
+
+  // ── 類別統計 ──
+  const catMap={};
+  outList.forEach(x=>{catMap[x.cat]=(catMap[x.cat]||0)+x.amount;});
+  const entries=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const labels=entries.map(e=>e[0]);
+  const amounts=entries.map(e=>e[1]);
+  const colors=labels.map((_,i)=>CAT_COLORS[i%CAT_COLORS.length]);
+
+  if(ledgerView==='chart'){
+    // ── 甜甜圈圖 ──
+    const donutCtx=document.getElementById('donut-chart');
+    if(donutCtx){
+      if(donutChartInst){donutChartInst.destroy();donutChartInst=null;}
+      if(entries.length){
+        donutChartInst=new Chart(donutCtx,{
+          type:'doughnut',
+          data:{labels,datasets:[{data:amounts,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},
+          options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}：$${ctx.raw.toLocaleString()}`}}}}
+        });
+      }
+      // 圖例
+      document.getElementById('donut-legend').innerHTML=entries.map(([cat,amt],i)=>{
+        const pct=Math.round(amt/totalOut*100);
+        return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)"><span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};flex-shrink:0"></span>${esc(cat)} ${pct}%</span>`;
+      }).join('');
+    }
+    // ── 橫條圖 ──
+    const barCtx=document.getElementById('bar-chart');
+    if(barCtx){
+      if(barChartInst){barChartInst.destroy();barChartInst=null;}
+      if(entries.length){
+        barChartInst=new Chart(barCtx,{
+          type:'bar',
+          data:{labels,datasets:[{data:amounts,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
+          options:{
+            indexAxis:'y',responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`$${ctx.raw.toLocaleString()}`}}},
+            scales:{x:{ticks:{callback:v=>'$'+v.toLocaleString()},grid:{color:'rgba(0,0,0,.05)'}},y:{grid:{display:false}}}
+          }
+        });
+      }
+    }
+
+    // ── 類別篩選標籤 ──
+    const filterEl=document.getElementById('ledger-cat-filter');
+    if(filterEl){
+      filterEl.innerHTML=`<button class="gr-tab${ledgerCatFilter==='all'?' active':''}" onclick="filterLedgerCat('all')">全部</button>`
+        +entries.map(([cat],i)=>`<button class="gr-tab${ledgerCatFilter===cat?' active':''}" onclick="filterLedgerCat('${cat}')" style="${ledgerCatFilter===cat?`background:${colors[i]};border-color:${colors[i]};color:#fff`:''}"> ${esc(cat)}</button>`).join('');
+    }
+
+    // ── 明細列表（圖表模式） ──
+    const show=outList.filter(x=>ledgerCatFilter==='all'||x.cat===ledgerCatFilter);
+    const sortedChart=[...show].sort((a,b)=>b.date.localeCompare(a.date));
+    const listEl=document.getElementById('ledger-list');
+    if(listEl) listEl.innerHTML=_renderLedgerRows(sortedChart);
+
+  } else {
+    // ── 純明細模式 ──
+    const filtered=D.ledger.filter(x=>ledgerFilter==='all'||x.type===ledgerFilter);
+    const sorted=[...filtered].sort((a,b)=>b.date.localeCompare(a.date));
+    const listOnly=document.getElementById('ledger-list-only');
+    if(listOnly) listOnly.innerHTML=_renderLedgerRows(sorted, true);
+  }
 }
-function filterLedger(type,el){ ledgerFilter=type; document.querySelectorAll('.ledger-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); renderLedger(); }
+
+function _renderLedgerRows(rows, showType=false){
+  if(!rows.length) return '<div class="empty"><i class="ti ti-wallet"></i>尚無帳目記錄</div>';
+  return rows.map(x=>{
+    const catIdx=Object.keys({飲食:1,交通:1,教育:1,水電費:1,收入:1,醫療:1,娛樂:1,購物:1}).indexOf(x.cat);
+    const col=CAT_COLORS[catIdx>=0?catIdx:7];
+    return `<div class="ledger-row">
+      <div class="ledger-icon" style="background:${x.type==='in'?'var(--green-light)':'var(--accent-light)'}">
+        <i class="ti ${ICON_MAP[x.cat]||'ti-dots'}" style="color:${x.type==='in'?'var(--green)':'var(--accent)'};font-size:14px"></i>
+      </div>
+      <div style="flex:1">
+        <div class="ledger-name">${esc(x.name)}</div>
+        <div class="ledger-sub">${esc(x.who||'')} · ${fmtDate(x.date)}
+          <span style="background:${col}22;color:${col};padding:1px 6px;border-radius:4px;font-size:10px;margin-left:4px">${esc(x.cat)}</span>
+        </div>
+      </div>
+      <div class="${x.type==='in'?'amount-in':'amount-out'}" style="white-space:nowrap">${x.type==='in'?'+':'-'}$${x.amount.toLocaleString()}</div>
+      <span class="del-btn" onclick="del('ledger','${x._id}')"><i class="ti ti-trash"></i></span>
+    </div>`;
+  }).join('');
+}
+
+function filterLedger(type,el){
+  ledgerFilter=type;
+  document.querySelectorAll('.ledger-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderLedger();
+}
+function filterLedgerCat(cat){
+  ledgerCatFilter=cat;
+  renderLedger();
+}
 async function saveLedger(){
   const name=document.getElementById('l-name').value.trim();
   const amount=parseFloat(document.getElementById('l-amount').value);
