@@ -212,6 +212,51 @@ textarea{resize:vertical;min-height:72px}
 
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+
+/* ══ MOBILE ══ */
+@media(max-width:768px){
+  .sidebar{display:none}
+  #app,.layout,.main{height:100dvh}
+  .topbar{padding:10px 14px}
+  .page-title{font-size:15px}
+  .sync-dot{display:none}
+  .content{padding:14px;padding-bottom:80px}
+
+  #mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:200;height:60px}
+  .mob-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;color:var(--text3);border:none;background:transparent;padding:4px 0}
+  .mob-nav-item i{font-size:22px}
+  .mob-nav-item span{font-size:9px}
+  .mob-nav-item.active{color:var(--accent)}
+
+  #mobile-more-menu{display:none;position:fixed;bottom:60px;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:199;flex-direction:column}
+  #mobile-more-menu.open{display:flex}
+  .mob-more-item{display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--border);cursor:pointer;color:var(--text2);font-size:14px}
+  .mob-more-item:last-child{border-bottom:none}
+  .mob-more-item i{font-size:18px;color:var(--accent)}
+  .mob-more-item.active{color:var(--accent);font-weight:600}
+  #mob-overlay{display:none;position:fixed;inset:0;z-index:198;background:rgba(0,0,0,.35)}
+  #mob-overlay.open{display:block}
+
+  .grid2{grid-template-columns:1fr 1fr}
+  .grid3{grid-template-columns:1fr 1fr}
+  .grid4{grid-template-columns:1fr 1fr}
+
+  .cal-day{min-height:50px;padding:4px 3px}
+  .cal-day-num{font-size:11px;width:20px;height:20px}
+  .cal-event-tag{font-size:9px;padding:1px 3px}
+
+  .modal-overlay{align-items:flex-end}
+  .modal{width:100%;max-width:100%;border-radius:16px 16px 0 0;max-height:90dvh;padding:20px 16px}
+  .form-row{grid-template-columns:1fr}
+
+  .ledger-row{gap:8px}
+  .grade-score{font-size:16px}
+  .login-box{width:92vw;padding:28px 20px}
+  .setup-cfg{grid-template-columns:1fr}
+}
+@media(min-width:769px){
+  #mobile-nav,#mobile-more-menu,#mob-overlay{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -527,6 +572,25 @@ textarea{resize:vertical;min-height:72px}
   <button class="btn btn-primary" style="width:100%" onclick="saveGrade()">儲存成績</button>
 </div></div>
 
+<!-- 手機底部導覽 -->
+<div id="mob-overlay" onclick="closeMobMenu()"></div>
+<div id="mobile-more-menu">
+  <div class="mob-more-item" data-panel="album"    onclick="mobShow('album')"   ><i class="ti ti-photo"></i> 相簿</div>
+  <div class="mob-more-item" data-panel="members"  onclick="mobShow('members')" ><i class="ti ti-users"></i> 家庭成員</div>
+  <div class="mob-more-item" data-panel="memo"     onclick="mobShow('memo')"    ><i class="ti ti-notebook"></i> 備忘錄</div>
+  <div class="mob-more-item" data-panel="grades"   onclick="mobShow('grades')"  ><i class="ti ti-school"></i> 成績記錄</div>
+  <div class="mob-more-item" data-panel="shopping" onclick="mobShow('shopping')"><i class="ti ti-shopping-cart"></i> 購物清單</div>
+  <div class="mob-more-item" data-panel="settings" onclick="mobShow('settings')"><i class="ti ti-settings"></i> 設定</div>
+  <div class="mob-more-item" onclick="doLogout()" style="color:var(--red)"><i class="ti ti-logout" style="color:var(--red)"></i> 登出（<span id="mob-username"></span>）</div>
+</div>
+<nav id="mobile-nav">
+  <button class="mob-nav-item active" data-panel="bulletin" onclick="mobShow('bulletin',this)"><i class="ti ti-speakerphone"></i><span>公告欄</span></button>
+  <button class="mob-nav-item" data-panel="calendar"  onclick="mobShow('calendar',this)"><i class="ti ti-calendar"></i><span>行事曆</span></button>
+  <button class="mob-nav-item" data-panel="todo"      onclick="mobShow('todo',this)"><i class="ti ti-checklist"></i><span>待辦</span></button>
+  <button class="mob-nav-item" data-panel="ledger"    onclick="mobShow('ledger',this)"><i class="ti ti-wallet"></i><span>帳本</span></button>
+  <button class="mob-nav-item" id="mob-more-btn"      onclick="toggleMobMenu(this)"><i class="ti ti-dots"></i><span>更多</span></button>
+</nav>
+
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -671,6 +735,8 @@ async function doLogin(){
     document.getElementById('sidebar-username').textContent=currentUser.name;
     document.getElementById('sidebar-role').textContent=currentUser.role==='admin'?'管理員':'成員';
     document.getElementById('btn-adduser').style.display=currentUser.role==='admin'?'':'none';
+    const mobUser=document.getElementById('mob-username');
+    if(mobUser)mobUser.textContent=currentUser.name;
     const nd=new Date();
     document.getElementById('sidebar-date').textContent=`${nd.getFullYear()}/${nd.getMonth()+1}/${nd.getDate()}`;
     startListeners();
@@ -730,9 +796,41 @@ function show(id,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
-  (el||document.querySelector(`[data-panel="${id}"]`)).classList.add('active');
+  const target=el||document.querySelector(`.nav-item[data-panel="${id}"]`);
+  if(target)target.classList.add('active');
   document.getElementById('page-title').textContent=TITLES[id];
   currentPanel=id;
+}
+
+// ── 手機導覽 ──
+function mobShow(id,el){
+  show(id);
+  // 更新底部 nav 按鈕狀態
+  document.querySelectorAll('.mob-nav-item').forEach(b=>b.classList.remove('active'));
+  const mainPanels=['bulletin','calendar','todo','ledger'];
+  if(mainPanels.includes(id)){
+    const btn=document.querySelector(`.mob-nav-item[data-panel="${id}"]`);
+    if(btn)btn.classList.add('active');
+  } else {
+    // 「更多」按鈕亮起
+    document.getElementById('mob-more-btn').classList.add('active');
+  }
+  // 更新「更多」選單 active 狀態
+  document.querySelectorAll('.mob-more-item[data-panel]').forEach(b=>b.classList.remove('active'));
+  const moreItem=document.querySelector(`.mob-more-item[data-panel="${id}"]`);
+  if(moreItem)moreItem.classList.add('active');
+  closeMobMenu();
+}
+function toggleMobMenu(btn){
+  const menu=document.getElementById('mobile-more-menu');
+  const overlay=document.getElementById('mob-overlay');
+  const isOpen=menu.classList.contains('open');
+  if(isOpen){closeMobMenu();}
+  else{menu.classList.add('open');overlay.classList.add('open');btn.classList.add('active');}
+}
+function closeMobMenu(){
+  document.getElementById('mobile-more-menu').classList.remove('open');
+  document.getElementById('mob-overlay').classList.remove('open');
 }
 function handleAdd(){
   const map={bulletin:'modal-bulletin',calendar:'modal-calendar',todo:'modal-todo',
