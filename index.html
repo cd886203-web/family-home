@@ -939,8 +939,16 @@ function renderCalendar(){
   for(let d=1;d<=days;d++){
     const ds=`${calYear}-${pad(calMonth+1)}-${pad(d)}`;
     const isT=d===now.getDate()&&calMonth===now.getMonth()&&calYear===now.getFullYear();
-    const hasE=D.events.some(e=>e.date===ds);
-    html+=`<div class="cal-day${isT?' today':''}">${d}${hasE?'<div class="dot"></div>':''}</div>`;
+    const evts=D.events.filter(e=>e.date===ds);
+    const todos=D.todos.filter(t=>t.date===ds&&!t.done);
+    const tags=[
+      ...evts.map(e=>`<div class="cal-event-tag" style="background:${e.color};color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.name)}</div>`),
+      ...todos.map(t=>`<div class="cal-event-tag" style="background:var(--border);color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">✓ ${esc(t.text)}</div>`)
+    ].join('');
+    html+=`<div class="cal-day${isT?' today':''}" style="align-items:flex-start;text-align:left;padding:4px 3px">
+      <div class="cal-day-num${isT?' today':''}" style="${isT?'':'width:auto;height:auto;border-radius:0;background:none;color:var(--text2)'}">${d}</div>
+      <div style="display:flex;flex-direction:column;gap:2px;width:100%;margin-top:2px">${tags}</div>
+    </div>`;
   }
   document.getElementById('cal-grid').innerHTML=html;
   const sorted=[...D.events].sort((a,b)=>a.date.localeCompare(b.date));
