@@ -709,6 +709,9 @@ function saveFirebaseConfig(){
 //  FIREBASE INIT
 // ══════════════════════════════════════════
 function setLoading(msg){ document.getElementById('loading-msg').textContent=msg; }
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function lsRemove(k){try{localStorage.removeItem(k);}catch(e){}}
 
 async function initFirebase(cfg){
   setLoading('連線 Firebase…');
@@ -722,13 +725,12 @@ async function initFirebase(cfg){
     await seedIfEmpty();
     document.getElementById('loading').style.display='none';
     // 嘗試自動登入（使用本機快取）
-    const session=JSON.parse(localStorage.getItem('fh_session')||'null');
+    const session=JSON.parse(lsGet('fh_session')||'null');
     if(session&&session.username){
       applyLogin(session);
     } else {
       document.getElementById('login-screen').classList.add('show');
-      // 填入已記憶的帳密
-      const saved=JSON.parse(localStorage.getItem('fh_saved')||'null');
+      const saved=JSON.parse(lsGet('fh_saved')||'null');
       if(saved){
         document.getElementById('login-user').value=saved.u||'';
         document.getElementById('login-pass').value=saved.p||'';
@@ -811,20 +813,20 @@ async function doLogin(){
   document.getElementById('login-err').textContent='';
   try{
     // 先比對本機快取（已登入帳號），若符合直接登入不等網路
-    const cached=JSON.parse(localStorage.getItem('fh_session')||'null');
+    const cached=JSON.parse(lsGet('fh_session')||'null');
     if(cached&&cached.username===u&&cached.password===p){
       if(document.getElementById('login-remember').checked)
-        localStorage.setItem('fh_saved',JSON.stringify({u,p}));
-      else localStorage.removeItem('fh_saved');
+        lsSet('fh_saved',JSON.stringify({u,p}));
+      else lsRemove('fh_saved');
       applyLogin(cached); return;
     }
     const snap=await db.collection('accounts').where('username','==',u).where('password','==',p).get();
     if(snap.empty){document.getElementById('login-err').textContent='帳號或密碼錯誤';return;}
     const user={...snap.docs[0].data(),docId:snap.docs[0].id};
-    localStorage.setItem('fh_session',JSON.stringify(user));
+    lsSet('fh_session',JSON.stringify(user));
     if(document.getElementById('login-remember').checked)
-      localStorage.setItem('fh_saved',JSON.stringify({u,p}));
-    else localStorage.removeItem('fh_saved');
+      lsSet('fh_saved',JSON.stringify({u,p}));
+    else lsRemove('fh_saved');
     applyLogin(user);
   }catch(e){document.getElementById('login-err').textContent='登入失敗：'+e.message;}
 }
@@ -834,11 +836,10 @@ document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key===
 function doLogout(){
   unsubscribes.forEach(u=>u());unsubscribes=[];
   currentUser=null;
-  localStorage.removeItem('fh_session');
+  lsRemove('fh_session');
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').classList.add('show');
-  // 若有記憶帳密則保留，否則清空
-  const saved=JSON.parse(localStorage.getItem('fh_saved')||'null');
+  const saved=JSON.parse(lsGet('fh_saved')||'null');
   document.getElementById('login-user').value=saved?saved.u:'';
   document.getElementById('login-pass').value=saved?saved.p:'';
   document.getElementById('login-remember').checked=!!saved;
