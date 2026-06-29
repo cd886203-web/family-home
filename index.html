@@ -534,6 +534,8 @@ textarea{resize:vertical;min-height:72px}
     <div class="form-group"><label>負責人</label><input id="t-who" placeholder="負責人"></div>
     <div class="form-group"><label>截止日期</label><input type="date" id="t-date"></div>
   </div>
+  <div class="form-group"><label>附圖（選填）</label><input type="file" id="t-file" accept="image/*" onchange="previewImg(this,'t-preview')"></div>
+  <div id="t-preview" style="margin:4px 0"></div>
   <button class="btn btn-primary" style="width:100%" onclick="saveTodo()">儲存待辦</button>
 </div></div>
 
@@ -563,6 +565,8 @@ textarea{resize:vertical;min-height:72px}
   <div class="modal-title">新增購物品項 <span class="modal-close" onclick="closeModal('modal-shopping')">×</span></div>
   <div class="form-group"><label>品項名稱</label><input id="s-name" placeholder="品項名稱"></div>
   <div class="form-group"><label>數量</label><input id="s-qty" placeholder="例：×2"></div>
+  <div class="form-group"><label>附圖（選填）</label><input type="file" id="s-file" accept="image/*" onchange="previewImg(this,'s-preview')"></div>
+  <div id="s-preview" style="margin:4px 0"></div>
   <button class="btn btn-primary" style="width:100%" onclick="saveShopping()">新增品項</button>
 </div></div>
 
@@ -963,18 +967,23 @@ async function saveEvent(){
 function renderTodo(){
   const sorted=[...D.todos].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   document.getElementById('todo-list').innerHTML=sorted.length?sorted.map(t=>`
-    <div class="todo-item">
-      <div class="chk${t.done?' done':''}" onclick="toggleTodo('${t._id}',${!t.done})">${t.done?'<i class="ti ti-check" style="font-size:11px;color:#fff"></i>':''}</div>
-      <div style="flex:1"><div class="todo-text${t.done?' done':''}">${esc(t.text)}</div>${t.who?`<div class="todo-meta">${esc(t.who)}${t.date?' · '+fmtDate(t.date):''}</div>`:''}</div>
-      <span class="del-btn" onclick="del('todos','${t._id}')"><i class="ti ti-trash"></i></span>
+    <div class="todo-item" style="flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <div class="chk${t.done?' done':''}" onclick="toggleTodo('${t._id}',${!t.done})" style="flex-shrink:0">${t.done?'<i class="ti ti-check" style="font-size:11px;color:#fff"></i>':''}</div>
+        <div style="flex:1;min-width:0"><div class="todo-text${t.done?' done':''}">${esc(t.text)}</div>${t.who?`<div class="todo-meta">${esc(t.who)}${t.date?' · '+fmtDate(t.date):''}</div>`:''}</div>
+        <span class="del-btn" onclick="del('todos','${t._id}')"><i class="ti ti-trash"></i></span>
+      </div>
+      ${t.img?`<div style="width:100%;margin-top:8px"><img src="${t.img}" style="max-width:100%;max-height:160px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="viewImg('${t.img}')"></div>`:''}
     </div>`).join(''):'<div class="empty"><i class="ti ti-checklist"></i>尚無待辦事項</div>';
 }
 async function saveTodo(){
   const text=document.getElementById('t-text').value.trim();
   if(!text)return;
   syncDot('syncing');
-  await db.collection('todos').add({text,who:document.getElementById('t-who').value.trim(),date:document.getElementById('t-date').value,done:false,createdAt:ts()});
+  const img=await readImgFile(document.getElementById('t-file'));
+  await db.collection('todos').add({text,who:document.getElementById('t-who').value.trim(),date:document.getElementById('t-date').value,done:false,img,createdAt:ts()});
   document.getElementById('t-text').value='';document.getElementById('t-who').value='';
+  document.getElementById('t-file').value='';document.getElementById('t-preview').innerHTML='';
   closeModal('modal-todo');syncDot('synced');
 }
 async function toggleTodo(id,done){ syncDot('syncing'); await db.collection('todos').doc(id).update({done}); syncDot('synced'); }
@@ -1195,19 +1204,24 @@ function renderLedgerLogs(){
 function renderShopping(){
   const sorted=[...D.shopping].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   document.getElementById('shopping-list').innerHTML=sorted.length?sorted.map(s=>`
-    <div class="shop-item">
-      <div class="chk${s.done?' done':''}" onclick="toggleShop('${s._id}',${!s.done})">${s.done?'<i class="ti ti-check" style="font-size:11px;color:#fff"></i>':''}</div>
-      <div class="todo-text${s.done?' done':''}" style="flex:1">${esc(s.name)}</div>
-      <div class="shop-qty">${esc(s.qty)}</div>
-      <span class="del-btn" onclick="del('shopping','${s._id}')"><i class="ti ti-trash"></i></span>
+    <div class="shop-item" style="flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <div class="chk${s.done?' done':''}" onclick="toggleShop('${s._id}',${!s.done})" style="flex-shrink:0">${s.done?'<i class="ti ti-check" style="font-size:11px;color:#fff"></i>':''}</div>
+        <div class="todo-text${s.done?' done':''}" style="flex:1">${esc(s.name)}</div>
+        <div class="shop-qty">${esc(s.qty)}</div>
+        <span class="del-btn" onclick="del('shopping','${s._id}')"><i class="ti ti-trash"></i></span>
+      </div>
+      ${s.img?`<div style="width:100%;margin-top:8px"><img src="${s.img}" style="max-width:100%;max-height:160px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="viewImg('${s.img}')"></div>`:''}
     </div>`).join(''):'<div class="empty"><i class="ti ti-shopping-cart"></i>購物清單是空的</div>';
 }
 async function saveShopping(){
   const name=document.getElementById('s-name').value.trim();
   if(!name)return;
   syncDot('syncing');
-  await db.collection('shopping').add({name,qty:document.getElementById('s-qty').value.trim()||'×1',done:false,createdAt:ts()});
+  const img=await readImgFile(document.getElementById('s-file'));
+  await db.collection('shopping').add({name,qty:document.getElementById('s-qty').value.trim()||'×1',done:false,img,createdAt:ts()});
   document.getElementById('s-name').value='';document.getElementById('s-qty').value='';
+  document.getElementById('s-file').value='';document.getElementById('s-preview').innerHTML='';
   closeModal('modal-shopping');syncDot('synced');
 }
 async function toggleShop(id,done){ syncDot('syncing'); await db.collection('shopping').doc(id).update({done}); syncDot('synced'); }
@@ -1272,6 +1286,39 @@ function renderAlbum(){
   const add=document.createElement('div');add.className='photo-card photo-add';add.innerHTML=`<i class="ti ti-plus" style="font-size:28px"></i><span>新增相片</span>`;add.onclick=()=>openModal('modal-album');
   grid.appendChild(add);
 }
+// ── 圖片工具 ──
+function previewImg(input, previewId){
+  const file=input.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{ document.getElementById(previewId).innerHTML=`<img src="${e.target.result}" style="max-width:100%;max-height:120px;border-radius:6px;margin-top:4px">`; };
+  reader.readAsDataURL(file);
+}
+function readImgFile(input, maxPx=600){
+  return new Promise(resolve=>{
+    const file=input&&input.files[0]; if(!file){resolve('');return;}
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        let w=img.width,h=img.height;
+        if(w>maxPx||h>maxPx){if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(c.toDataURL('image/jpeg',0.75));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function viewImg(src){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  ov.innerHTML=`<img src="${src}" style="max-width:92vw;max-height:88vh;border-radius:8px">`;
+  ov.onclick=()=>ov.remove();
+  document.body.appendChild(ov);
+}
+
 document.getElementById('al-file').addEventListener('change',function(){
   const file=this.files[0];if(!file)return;
   const reader=new FileReader();
