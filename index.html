@@ -605,7 +605,8 @@ textarea{resize:vertical;min-height:72px}
 
 <!-- 成績 Modal -->
 <div class="modal-overlay" id="modal-grades"><div class="modal">
-  <div class="modal-title">新增成績 <span class="modal-close" onclick="closeModal('modal-grades')">×</span></div>
+  <input type="hidden" id="g-edit-id" value="">
+  <div class="modal-title" id="modal-grades-title">新增成績 <span class="modal-close" onclick="closeModal('modal-grades')">×</span></div>
   <div class="form-row">
     <div class="form-group"><label>孩子姓名</label><select id="g-child"></select></div>
     <div class="form-group"><label>學年度</label><select id="g-year"></select></div>
@@ -872,7 +873,7 @@ function renderForCol(col){
   const map={bulletins:renderBulletin,events:()=>{renderCalendar();renderBulletin();},
     todos:()=>{renderTodo();renderBulletin();renderCalendar();},ledger:renderLedger,
     shopping:renderShopping,memos:renderMemo,members:()=>{renderMembers();renderGrades();},
-    album:renderAlbum,accounts:renderSettings,grades:renderGrades};
+    album:renderAlbum,accounts:()=>{renderSettings();renderMembers();},grades:renderGrades};
   if(map[col])map[col]();
 }
 
@@ -924,7 +925,7 @@ function closeMobMenu(){
 function handleAdd(){
   const map={bulletin:'modal-bulletin',calendar:'modal-calendar',todo:'modal-todo',
     memo:'modal-memo',ledger:'modal-ledger',shopping:'modal-shopping',
-    album:'modal-album',members:'modal-member',grades:'modal-grades'};
+    album:'modal-album',members:'modal-adduser',grades:'modal-grades'};
   document.getElementById('e-date').value=nowDate();
   document.getElementById('t-date').value=nowDate();
   document.getElementById('l-date').value=nowDate();
@@ -1314,13 +1315,19 @@ async function saveMemo(){
 //  MEMBERS
 // ══════════════════════════════════════════
 function renderMembers(){
-  document.getElementById('member-grid').innerHTML=D.members.length?D.members.map(m=>`
-    <div class="member-card">
-      <div class="avatar" style="background:${m.bg};color:${m.fg}">${m.name.charAt(0)}</div>
-      <div class="member-name" style="font-size:13px;font-weight:600">${esc(m.name)}</div>
-      <div style="font-size:12px;color:var(--text2);margin-top:2px">${esc(m.role)}</div>
-      ${isAdmin()?`<span class="del-btn" onclick="del('members','${m._id}')" style="font-size:11px;display:inline-block;margin-top:6px"><i class="ti ti-trash"></i></span>`:''}
-    </div>`).join(''):'<div class="empty"><i class="ti ti-users"></i>尚無成員</div>';
+  const AVATAR_COLORS=['#EEEDFE|#3C3489','#E1F5EE|#085041','#FAEEDA|#633806','#FAECE7|#712B13','#E6F1FB|#0C447C'];
+  const accs=D.accounts.length?D.accounts:[...D.members];
+  document.getElementById('member-grid').innerHTML=accs.length?accs.map((m,i)=>{
+    const [bg,fg]=(m.bg&&m.fg)?[m.bg,m.fg]:AVATAR_COLORS[i%AVATAR_COLORS.length].split('|');
+    const isSelf=currentUser&&(m.username===currentUser.username||m._id===currentUser.docId);
+    const roleLabel=m.role==='admin'?'管理員':m.role==='member'?'成員':esc(m.role||'');
+    return `<div class="member-card" style="${isSelf?'border:2px solid var(--accent)':''}">
+      <div class="avatar" style="background:${bg};color:${fg}">${(m.name||'?').charAt(0)}</div>
+      <div class="member-name" style="font-size:13px;font-weight:600">${esc(m.name||m.username)}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">${roleLabel}</div>
+      ${isSelf?'<div style="font-size:10px;color:var(--accent);margin-top:3px">目前登入</div>':''}
+    </div>`;
+  }).join(''):'<div class="empty"><i class="ti ti-users"></i>尚無成員</div>';
 }
 async function saveMember(){
   const name=document.getElementById('mb-name').value.trim();
@@ -1587,11 +1594,30 @@ function renderGrades(){
           <span class="grade-badge ${lv.cls}">${lv.label}</span>${trendHtml}
         </div>
       </div>
+      <span class="del-btn" style="color:var(--accent)" onclick="openGradeEdit('${g._id}')"><i class="ti ti-pencil"></i></span>
       <span class="del-btn" onclick="del('grades','${g._id}')"><i class="ti ti-trash"></i></span>
     </div>`;
   }).join(''):'<div class="empty"><i class="ti ti-school"></i>尚無成績記錄</div>';
 }
 
+function openGradeEdit(id){
+  const g=D.grades.find(r=>r._id===id);
+  if(!g)return;
+  document.getElementById('g-edit-id').value=id;
+  // 確保 select options 已填好
+  initGradeSelects();
+  document.getElementById('g-child').value=g.child;
+  document.getElementById('g-year').value=g.year;
+  document.getElementById('g-sem').value=g.sem;
+  document.getElementById('g-type').value=g.type;
+  document.getElementById('g-subject').value=g.subject;
+  document.getElementById('g-score').value=g.score;
+  document.getElementById('g-full').value=g.full||100;
+  document.getElementById('g-date').value=g.date;
+  document.getElementById('g-note').value=g.note||'';
+  document.getElementById('modal-grades-title').innerHTML='編輯成績 <span class="modal-close" onclick="closeModal(\'modal-grades\')">×</span>';
+  openModal('modal-grades');
+}
 async function saveGrade(){
   const score=parseFloat(document.getElementById('g-score').value);
   const full=parseFloat(document.getElementById('g-full').value)||100;
@@ -1599,18 +1625,19 @@ async function saveGrade(){
   const date=document.getElementById('g-date').value;
   if(!child||isNaN(score)||!date)return;
   syncDot('syncing');
-  await db.collection('grades').add({
-    child,
-    year:document.getElementById('g-year').value,
-    sem:document.getElementById('g-sem').value,
-    type:document.getElementById('g-type').value,
-    subject:document.getElementById('g-subject').value,
-    score,full,date,
-    note:document.getElementById('g-note').value.trim(),
-    createdAt:ts()
-  });
+  const editId=document.getElementById('g-edit-id').value;
+  const data={child,year:document.getElementById('g-year').value,sem:document.getElementById('g-sem').value,
+    type:document.getElementById('g-type').value,subject:document.getElementById('g-subject').value,
+    score,full,date,note:document.getElementById('g-note').value.trim()};
+  if(editId){
+    await db.collection('grades').doc(editId).update(data);
+  } else {
+    await db.collection('grades').add({...data,createdAt:ts()});
+  }
   document.getElementById('g-score').value='';
   document.getElementById('g-note').value='';
+  document.getElementById('g-edit-id').value='';
+  document.getElementById('modal-grades-title').innerHTML='新增成績 <span class="modal-close" onclick="closeModal(\'modal-grades\')">×</span>';
   closeModal('modal-grades');syncDot('synced');
 }
 
