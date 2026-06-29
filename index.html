@@ -870,7 +870,7 @@ function startListeners(){
 
 function renderForCol(col){
   const map={bulletins:renderBulletin,events:()=>{renderCalendar();renderBulletin();},
-    todos:()=>{renderTodo();renderBulletin();},ledger:renderLedger,
+    todos:()=>{renderTodo();renderBulletin();renderCalendar();},ledger:renderLedger,
     shopping:renderShopping,memos:renderMemo,members:()=>{renderMembers();renderGrades();},
     album:renderAlbum,accounts:renderSettings,grades:renderGrades};
   if(map[col])map[col]();
