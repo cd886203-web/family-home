@@ -411,6 +411,7 @@ textarea{resize:vertical;min-height:72px}
           <div style="display:flex;gap:6px">
             <button class="btn" id="view-chart-btn" onclick="setLedgerView('chart',this)" style="background:var(--accent);color:#fff;border-color:var(--accent)"><i class="ti ti-chart-donut"></i> 圖表</button>
             <button class="btn" id="view-list-btn"  onclick="setLedgerView('list',this)"><i class="ti ti-list"></i> 明細</button>
+            <button class="btn" id="view-log-btn"   onclick="setLedgerView('log',this)"><i class="ti ti-history"></i> 紀錄</button>
           </div>
         </div>
 
@@ -451,6 +452,12 @@ textarea{resize:vertical;min-height:72px}
             </div>
           </div>
           <div id="ledger-list-only"></div>
+        </div>
+
+        <!-- 操作紀錄檢視 -->
+        <div id="ledger-view-log" style="display:none">
+          <div class="section-head"><div class="section-title">操作紀錄</div></div>
+          <div id="ledger-log-list"></div>
         </div>
       </div>
 
@@ -537,7 +544,8 @@ textarea{resize:vertical;min-height:72px}
 </div></div>
 
 <div class="modal-overlay" id="modal-ledger"><div class="modal">
-  <div class="modal-title">新增帳目 <span class="modal-close" onclick="closeModal('modal-ledger')">×</span></div>
+  <input type="hidden" id="l-edit-id" value="">
+  <div class="modal-title" id="modal-ledger-title">新增帳目 <span class="modal-close" onclick="closeModal('modal-ledger')">×</span></div>
   <div class="form-row">
     <div class="form-group"><label>類型</label><select id="l-type"><option value="out">支出</option><option value="in">收入</option></select></div>
     <div class="form-group"><label>分類</label><select id="l-cat"><option>飲食</option><option>交通</option><option>教育</option><option>水電費</option><option>醫療</option><option>娛樂</option><option>收入</option><option>其他</option></select></div>
@@ -644,9 +652,9 @@ let ledgerFilter = 'all';
 
 // In-memory cache (updated by Firestore listeners)
 const D = {
-  bulletins:[], events:[], todos:[], ledger:[],
+  bulletins:[], events:[], todos:[], ledger:[], ledger_logs:[],
   shopping:[], memos:[], members:[], album:[],
-  accounts:[], config:{ sitename:'我家的家' }
+  accounts:[], grades:[], config:{ sitename:'我家的家' }
 };
 
 const BUILT_IN_CFG = {
@@ -798,7 +806,7 @@ function syncDot(state){ const d=document.getElementById('sync-dot'); d.classNam
 
 function startListeners(){
   syncDot('syncing');
-  const cols=['bulletins','events','todos','ledger','shopping','memos','members','album','accounts','grades'];
+  const cols=['bulletins','events','todos','ledger','ledger_logs','shopping','memos','members','album','accounts','grades'];
   let loaded=0;
   cols.forEach(col=>{
     const unsub=db.collection(col).onSnapshot(snap=>{
@@ -992,9 +1000,13 @@ function setLedgerView(mode,el){
   ledgerView=mode;
   document.getElementById('ledger-view-chart').style.display=mode==='chart'?'block':'none';
   document.getElementById('ledger-view-list').style.display=mode==='list'?'block':'none';
-  document.getElementById('view-chart-btn').style.cssText=mode==='chart'?'background:var(--accent);color:#fff;border-color:var(--accent)':'';
-  document.getElementById('view-list-btn').style.cssText=mode==='list'?'background:var(--accent);color:#fff;border-color:var(--accent)':'';
-  renderLedger();
+  document.getElementById('ledger-view-log').style.display=mode==='log'?'block':'none';
+  ['chart','list','log'].forEach(m=>{
+    const b=document.getElementById('view-'+m+'-btn');
+    if(b) b.style.cssText=mode===m?'background:var(--accent);color:#fff;border-color:var(--accent)':'';
+  });
+  if(mode==='log') renderLedgerLogs();
+  else renderLedger();
 }
 
 const CAT_COLORS=['#534AB7','#1D9E75','#D85A30','#BA7517','#185FA5','#639922','#D4537E','#888780'];
@@ -1101,7 +1113,8 @@ function _renderLedgerRows(rows, showType=false){
         </div>
       </div>
       <div class="${x.type==='in'?'amount-in':'amount-out'}" style="white-space:nowrap">${x.type==='in'?'+':'-'}$${x.amount.toLocaleString()}</div>
-      <span class="del-btn" onclick="del('ledger','${x._id}')"><i class="ti ti-trash"></i></span>
+      <span class="del-btn" style="color:var(--accent)" onclick="openLedgerEdit('${x._id}')"><i class="ti ti-pencil"></i></span>
+      <span class="del-btn" onclick="delLedger('${x._id}','${esc(x.name)}')"><i class="ti ti-trash"></i></span>
     </div>`;
   }).join('');
 }
@@ -1116,14 +1129,64 @@ function filterLedgerCat(cat){
   ledgerCatFilter=cat;
   renderLedger();
 }
+function openLedgerEdit(id){
+  const x=D.ledger.find(r=>r._id===id);
+  if(!x)return;
+  document.getElementById('l-edit-id').value=id;
+  document.getElementById('l-type').value=x.type;
+  document.getElementById('l-cat').value=x.cat;
+  document.getElementById('l-name').value=x.name;
+  document.getElementById('l-amount').value=x.amount;
+  document.getElementById('l-date').value=x.date;
+  document.getElementById('l-who').value=x.who||'';
+  document.getElementById('modal-ledger-title').innerHTML='編輯帳目 <span class="modal-close" onclick="closeModal(\'modal-ledger\')">×</span>';
+  openModal('modal-ledger');
+}
 async function saveLedger(){
   const name=document.getElementById('l-name').value.trim();
   const amount=parseFloat(document.getElementById('l-amount').value);
   if(!name||isNaN(amount)||amount<=0)return;
   syncDot('syncing');
-  await db.collection('ledger').add({type:document.getElementById('l-type').value,cat:document.getElementById('l-cat').value,name,amount,date:document.getElementById('l-date').value,who:document.getElementById('l-who').value.trim(),createdAt:ts()});
-  document.getElementById('l-name').value='';document.getElementById('l-amount').value='';document.getElementById('l-who').value='';
+  const editId=document.getElementById('l-edit-id').value;
+  const data={type:document.getElementById('l-type').value,cat:document.getElementById('l-cat').value,name,amount,date:document.getElementById('l-date').value,who:document.getElementById('l-who').value.trim()};
+  const op=editId?'編輯':'新增';
+  if(editId){
+    await db.collection('ledger').doc(editId).update({...data,updatedAt:ts()});
+  } else {
+    await db.collection('ledger').add({...data,createdAt:ts()});
+  }
+  await db.collection('ledger_logs').add({op,name,amount:data.amount,cat:data.cat,type:data.type,who:data.who,by:currentUser?.name||'',at:ts()});
+  document.getElementById('l-name').value='';document.getElementById('l-amount').value='';document.getElementById('l-who').value='';document.getElementById('l-edit-id').value='';
+  document.getElementById('modal-ledger-title').innerHTML='新增帳目 <span class="modal-close" onclick="closeModal(\'modal-ledger\')">×</span>';
   closeModal('modal-ledger');syncDot('synced');
+}
+async function delLedger(id,name){
+  if(!confirm('確定刪除「'+name+'」？'))return;
+  syncDot('syncing');
+  const x=D.ledger.find(r=>r._id===id);
+  await db.collection('ledger').doc(id).delete();
+  await db.collection('ledger_logs').add({op:'刪除',name:x?.name||name,amount:x?.amount||0,cat:x?.cat||'',type:x?.type||'',who:x?.who||'',by:currentUser?.name||'',at:ts()});
+  syncDot('synced');
+}
+function renderLedgerLogs(){
+  const el=document.getElementById('ledger-log-list');
+  if(!el)return;
+  const logs=[...(D.ledger_logs||[])].sort((a,b)=>(b.at?.seconds||0)-(a.at?.seconds||0));
+  if(!logs.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>尚無操作紀錄</div>';return;}
+  const opColor={新增:'var(--green)',編輯:'var(--accent)',刪除:'#e53'};
+  el.innerHTML=logs.map(x=>{
+    const d=x.at?.seconds?new Date(x.at.seconds*1000).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'--';
+    return `<div class="ledger-row">
+      <div style="width:36px;height:36px;border-radius:50%;background:${opColor[x.op]||'#888'}22;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-size:11px;font-weight:700;color:${opColor[x.op]||'#888'}">${x.op}</span>
+      </div>
+      <div style="flex:1">
+        <div class="ledger-name">${esc(x.name)} <span style="font-size:11px;color:var(--text3)">$${(x.amount||0).toLocaleString()}</span></div>
+        <div class="ledger-sub">${esc(x.by||'')} · ${d}</div>
+      </div>
+      <span style="font-size:11px;color:var(--text3)">${esc(x.cat||'')}</span>
+    </div>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════
