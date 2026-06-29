@@ -423,7 +423,7 @@ textarea{resize:vertical;min-height:72px}
         </div>
 
         <!-- 統計卡 -->
-        <div class="grid4" style="margin-bottom:14px">
+        <div class="grid4" style="margin-bottom:14px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
           <div class="metric"><div class="metric-label">本月收入</div><div class="metric-val amount-in" id="stat-in">$0</div></div>
           <div class="metric"><div class="metric-label">本月支出</div><div class="metric-val amount-out" id="stat-out">$0</div></div>
           <div class="metric"><div class="metric-label">結餘</div><div class="metric-val" id="stat-bal">$0</div></div>
@@ -517,7 +517,8 @@ textarea{resize:vertical;min-height:72px}
 
 <!-- MODALS -->
 <div class="modal-overlay" id="modal-bulletin"><div class="modal">
-  <div class="modal-title">新增公告 <span class="modal-close" onclick="closeModal('modal-bulletin')">×</span></div>
+  <input type="hidden" id="b-edit-id" value="">
+  <div class="modal-title" id="modal-bulletin-title">新增公告 <span class="modal-close" onclick="closeModal('modal-bulletin')">×</span></div>
   <div class="form-group"><label>標題</label><input id="b-title" placeholder="公告標題"></div>
   <div class="form-group"><label>標籤</label><select id="b-tag"><option>重要</option><option>生活</option><option>提醒</option><option>其他</option></select></div>
   <div class="form-group"><label>內容</label><textarea id="b-body" placeholder="公告內容"></textarea></div>
@@ -547,7 +548,8 @@ textarea{resize:vertical;min-height:72px}
 </div></div>
 
 <div class="modal-overlay" id="modal-memo"><div class="modal">
-  <div class="modal-title">新增備忘錄 <span class="modal-close" onclick="closeModal('modal-memo')">×</span></div>
+  <input type="hidden" id="m-edit-id" value="">
+  <div class="modal-title" id="modal-memo-title">新增備忘錄 <span class="modal-close" onclick="closeModal('modal-memo')">×</span></div>
   <div class="form-group"><label>內容</label><textarea id="m-text" placeholder="備忘內容" style="min-height:100px"></textarea></div>
   <button class="btn btn-primary" style="width:100%" onclick="saveMemo()">儲存備忘錄</button>
 </div></div>
@@ -585,13 +587,6 @@ textarea{resize:vertical;min-height:72px}
   <button class="btn btn-primary" style="width:100%" onclick="saveAlbum()">儲存相片</button>
 </div></div>
 
-<div class="modal-overlay" id="modal-member"><div class="modal">
-  <div class="modal-title">新增家庭成員 <span class="modal-close" onclick="closeModal('modal-member')">×</span></div>
-  <div class="form-group"><label>姓名</label><input id="mb-name" placeholder="成員姓名"></div>
-  <div class="form-group"><label>角色</label><input id="mb-role" placeholder="如：爸爸、媽媽、兒子"></div>
-  <div class="form-group"><label>顏色</label><select id="mb-color"><option value="#EEEDFE|#3C3489">紫色</option><option value="#E1F5EE|#085041">綠色</option><option value="#FAEEDA|#633806">琥珀</option><option value="#FAECE7|#712B13">橘紅</option><option value="#E6F1FB|#0C447C">藍色</option></select></div>
-  <button class="btn btn-primary" style="width:100%" onclick="saveMember()">儲存成員</button>
-</div></div>
 
 <div class="modal-overlay" id="modal-adduser"><div class="modal">
   <div class="modal-title">新增帳號 <span class="modal-close" onclick="closeModal('modal-adduser')">×</span></div>
@@ -625,6 +620,12 @@ textarea{resize:vertical;min-height:72px}
   </div>
   <div class="form-group"><label>備註</label><input id="g-note" placeholder="選填"></div>
   <button class="btn btn-primary" style="width:100%" onclick="saveGrade()">儲存成績</button>
+</div></div>
+
+<!-- 當日活動 Modal -->
+<div class="modal-overlay" id="modal-day-view"><div class="modal">
+  <div class="modal-title" id="modal-day-title">活動 <span class="modal-close" onclick="closeModal('modal-day-view')">×</span></div>
+  <div id="modal-day-body"></div>
 </div></div>
 
 <!-- 手機底部導覽 -->
@@ -712,6 +713,10 @@ function setLoading(msg){ document.getElementById('loading-msg').textContent=msg
 function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 function lsRemove(k){try{localStorage.removeItem(k);}catch(e){}}
+async function hashPw(pw){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 
 async function initFirebase(cfg){
   setLoading('連線 Firebase…');
@@ -813,16 +818,23 @@ async function doLogin(){
   document.getElementById('login-err').textContent='';
   try{
     // 先比對本機快取（已登入帳號），若符合直接登入不等網路
+    const h=await hashPw(p);
     const cached=JSON.parse(lsGet('fh_session')||'null');
-    if(cached&&cached.username===u&&cached.password===p){
+    if(cached&&cached.username===u&&(cached.password===h||cached.password===p)){
       if(document.getElementById('login-remember').checked)
         lsSet('fh_saved',JSON.stringify({u,p}));
       else lsRemove('fh_saved');
       applyLogin(cached); return;
     }
-    const snap=await db.collection('accounts').where('username','==',u).where('password','==',p).get();
-    if(snap.empty){document.getElementById('login-err').textContent='帳號或密碼錯誤';return;}
-    const user={...snap.docs[0].data(),docId:snap.docs[0].id};
+    // 先嘗試雜湊密碼，若無則嘗試明文（舊帳號遷移）
+    let snap=await db.collection('accounts').where('username','==',u).where('password','==',h).get();
+    if(snap.empty){
+      snap=await db.collection('accounts').where('username','==',u).where('password','==',p).get();
+      if(snap.empty){document.getElementById('login-err').textContent='帳號或密碼錯誤';return;}
+      // 舊明文帳號 → 自動升級為雜湊
+      await db.collection('accounts').doc(snap.docs[0].id).update({password:h});
+    }
+    const user={...snap.docs[0].data(),password:h,docId:snap.docs[0].id};
     lsSet('fh_session',JSON.stringify(user));
     if(document.getElementById('login-remember').checked)
       lsSet('fh_saved',JSON.stringify({u,p}));
@@ -953,16 +965,36 @@ function renderBulletin(){
       <div class="card-title">${esc(b.title)}</div>
       <div class="card-meta">${esc(b.author)} · ${fmtDate(b.date)}</div>
       <div class="card-body">${esc(b.body)}</div>
-      ${isAdmin()?`<div style="text-align:right;margin-top:8px"><span class="del-btn" onclick="del('bulletins','${b._id}',renderBulletin)"><i class="ti ti-trash"></i> 刪除</span></div>`:''}
+      ${isAdmin()?`<div style="text-align:right;margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+        <span class="del-btn" style="color:var(--accent)" onclick="openBulletinEdit('${b._id}')"><i class="ti ti-pencil"></i> 編輯</span>
+        <span class="del-btn" onclick="del('bulletins','${b._id}',renderBulletin)"><i class="ti ti-trash"></i> 刪除</span>
+      </div>`:''}
     </div>`).join(''):'<div class="empty"><i class="ti ti-speakerphone"></i>尚無公告</div>';
+}
+function openBulletinEdit(id){
+  const b=D.bulletins.find(r=>r._id===id);if(!b)return;
+  document.getElementById('b-edit-id').value=id;
+  document.getElementById('b-title').value=b.title;
+  document.getElementById('b-tag').value=b.tag;
+  document.getElementById('b-body').value=b.body;
+  document.getElementById('modal-bulletin-title').innerHTML='編輯公告 <span class="modal-close" onclick="closeModal(\'modal-bulletin\')">×</span>';
+  openModal('modal-bulletin');
 }
 async function saveBulletin(){
   const title=document.getElementById('b-title').value.trim();
   const body=document.getElementById('b-body').value.trim();
   if(!title||!body)return;
   syncDot('syncing');
-  await db.collection('bulletins').add({title,tag:document.getElementById('b-tag').value,body,author:currentUser.name,date:nowDate(),createdAt:ts()});
+  const editId=document.getElementById('b-edit-id').value;
+  const tag=document.getElementById('b-tag').value;
+  if(editId){
+    await db.collection('bulletins').doc(editId).update({title,tag,body});
+  } else {
+    await db.collection('bulletins').add({title,tag,body,author:currentUser.name,date:nowDate(),createdAt:ts()});
+  }
   document.getElementById('b-title').value='';document.getElementById('b-body').value='';
+  document.getElementById('b-edit-id').value='';
+  document.getElementById('modal-bulletin-title').innerHTML='新增公告 <span class="modal-close" onclick="closeModal(\'modal-bulletin\')">×</span>';
   closeModal('modal-bulletin');syncDot('synced');
 }
 
@@ -996,7 +1028,7 @@ function renderCalendar(){
       ...evts.map(e=>`<span class="cal-event-tag" style="background:${e.color};color:#fff">${esc(e.name)}</span>`),
       ...todos.map(t=>`<span class="cal-event-tag" style="background:var(--border);color:var(--text2)">✓ ${esc(t.text)}</span>`)
     ].join('');
-    html+=`<div class="cal-day">
+    html+=`<div class="cal-day" onclick="openDayView('${ds}')">
       <span class="${numCls}">${d}</span>
       ${tags}
     </div>`;
@@ -1018,6 +1050,32 @@ function renderCalendar(){
     </div>`).join(''):'';
 }
 function calMove(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+function openDayView(ds){
+  const evts=D.events.filter(e=>e.date===ds);
+  const todos=D.todos.filter(t=>t.date===ds);
+  if(!evts.length&&!todos.length)return;
+  const [y,m,d]=ds.split('-');
+  document.getElementById('modal-day-title').innerHTML=`${parseInt(m)}月${parseInt(d)}日 <span class="modal-close" onclick="closeModal('modal-day-view')">×</span>`;
+  let html='';
+  if(evts.length){
+    html+=`<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">活動</div>`;
+    html+=evts.map(e=>`<div class="event-item">
+      <div class="event-dot" style="background:${e.color}"></div>
+      <div style="flex:1;font-size:13px">${esc(e.name)}</div>
+      ${isAdmin()?`<span class="del-btn" onclick="del('events','${e._id}');closeModal('modal-day-view')"><i class="ti ti-trash"></i></span>`:''}
+    </div>`).join('');
+  }
+  if(todos.length){
+    html+=`<div style="font-size:12px;font-weight:600;color:var(--text2);margin:10px 0 6px">待辦</div>`;
+    html+=todos.map(t=>`<div class="todo-item">
+      <div class="chk${t.done?' done':''}" onclick="toggleTodo('${t._id}',${!t.done})">${t.done?'<i class="ti ti-check" style="font-size:11px;color:#fff"></i>':''}</div>
+      <div class="todo-text${t.done?' done':''}" style="flex:1">${esc(t.text)}</div>
+      ${t.who?`<span style="font-size:11px;color:var(--text3)">${esc(t.who)}</span>`:''}
+    </div>`).join('');
+  }
+  document.getElementById('modal-day-body').innerHTML=html;
+  openModal('modal-day-view');
+}
 async function saveEvent(){
   const name=document.getElementById('e-name').value.trim();
   const date=document.getElementById('e-date').value;
@@ -1080,8 +1138,8 @@ function setLedgerView(mode,el){
     const b=document.getElementById('view-'+m+'-btn');
     if(b) b.style.cssText=mode===m?'background:var(--accent);color:#fff;border-color:var(--accent)':'';
   });
+  renderLedger();
   if(mode==='log') renderLedgerLogs();
-  else renderLedger();
 }
 
 const CAT_COLORS=['#534AB7','#1D9E75','#D85A30','#BA7517','#185FA5','#639922','#D4537E','#888780'];
@@ -1301,15 +1359,33 @@ function renderMemo(){
     <div class="memo-card">
       <div class="memo-text">${esc(m.text)}</div>
       <div class="memo-date">${fmtDate(m.date)}</div>
-      <span class="del-btn" style="position:absolute;top:10px;right:10px" onclick="del('memos','${m._id}')"><i class="ti ti-trash"></i></span>
+      <div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">
+        <span class="del-btn" style="color:var(--accent-dark)" onclick="openMemoEdit('${m._id}')"><i class="ti ti-pencil"></i></span>
+        <span class="del-btn" onclick="del('memos','${m._id}')"><i class="ti ti-trash"></i></span>
+      </div>
     </div>`).join(''):'<div class="empty"><i class="ti ti-notebook"></i>尚無備忘錄</div>';
+}
+function openMemoEdit(id){
+  const m=D.memos.find(r=>r._id===id);if(!m)return;
+  document.getElementById('m-edit-id').value=id;
+  document.getElementById('m-text').value=m.text;
+  document.getElementById('modal-memo-title').innerHTML='編輯備忘錄 <span class="modal-close" onclick="closeModal(\'modal-memo\')">×</span>';
+  openModal('modal-memo');
 }
 async function saveMemo(){
   const text=document.getElementById('m-text').value.trim();
   if(!text)return;
   syncDot('syncing');
-  await db.collection('memos').add({text,date:nowDate(),createdAt:ts()});
-  document.getElementById('m-text').value='';closeModal('modal-memo');syncDot('synced');
+  const editId=document.getElementById('m-edit-id').value;
+  if(editId){
+    await db.collection('memos').doc(editId).update({text});
+  } else {
+    await db.collection('memos').add({text,date:nowDate(),createdAt:ts()});
+  }
+  document.getElementById('m-text').value='';
+  document.getElementById('m-edit-id').value='';
+  document.getElementById('modal-memo-title').innerHTML='新增備忘錄 <span class="modal-close" onclick="closeModal(\'modal-memo\')">×</span>';
+  closeModal('modal-memo');syncDot('synced');
 }
 
 // ══════════════════════════════════════════
@@ -1329,16 +1405,6 @@ function renderMembers(){
       ${isSelf?'<div style="font-size:10px;color:var(--accent);margin-top:3px">目前登入</div>':''}
     </div>`;
   }).join(''):'<div class="empty"><i class="ti ti-users"></i>尚無成員</div>';
-}
-async function saveMember(){
-  const name=document.getElementById('mb-name').value.trim();
-  const role=document.getElementById('mb-role').value.trim();
-  if(!name||!role)return;
-  const [bg,fg]=document.getElementById('mb-color').value.split('|');
-  syncDot('syncing');
-  await db.collection('members').add({name,role,bg,fg,createdAt:ts()});
-  document.getElementById('mb-name').value='';document.getElementById('mb-role').value='';
-  closeModal('modal-member');syncDot('synced');
 }
 
 // ══════════════════════════════════════════
@@ -1456,10 +1522,13 @@ async function changePassword(){
   if(nw!==cf){msg.style.color='var(--red)';msg.textContent='新密碼與確認密碼不一致';return;}
   if(nw.length<6){msg.style.color='var(--red)';msg.textContent='密碼至少需6個字元';return;}
   const acc=D.accounts.find(a=>a.username===currentUser.username);
-  if(!acc||acc.password!==old){msg.style.color='var(--red)';msg.textContent='目前密碼錯誤';return;}
+  const oldH=await hashPw(old);
+  if(!acc||(acc.password!==oldH&&acc.password!==old)){msg.style.color='var(--red)';msg.textContent='目前密碼錯誤';return;}
   syncDot('syncing');
-  await db.collection('accounts').doc(acc._id).update({password:nw});
-  currentUser.password=nw;
+  const nwH=await hashPw(nw);
+  await db.collection('accounts').doc(acc._id).update({password:nwH});
+  currentUser.password=nwH;
+  lsSet('fh_session',JSON.stringify(currentUser));
   document.getElementById('pw-old').value='';document.getElementById('pw-new').value='';document.getElementById('pw-confirm').value='';
   msg.style.color='var(--green)';msg.textContent='密碼已成功更新';syncDot('synced');
   setTimeout(()=>msg.textContent='',3000);
@@ -1474,7 +1543,8 @@ async function saveNewUser(){
   if(password.length<6){msg.style.color='var(--red)';msg.textContent='密碼至少需6個字元';return;}
   if(D.accounts.find(a=>a.username===username)){msg.style.color='var(--red)';msg.textContent='帳號已存在';return;}
   syncDot('syncing');
-  await db.collection('accounts').doc(username).set({username,name,password,role,createdAt:ts()});
+  const pwH=await hashPw(password);
+  await db.collection('accounts').doc(username).set({username,name,password:pwH,role,createdAt:ts()});
   document.getElementById('au-user').value='';document.getElementById('au-name').value='';document.getElementById('au-pass').value='';
   msg.style.color='var(--green)';msg.textContent='帳號建立成功';syncDot('synced');
   setTimeout(()=>{msg.textContent='';closeModal('modal-adduser');},1200);
@@ -1499,7 +1569,8 @@ function gradeLevel(score,full){
 }
 
 function initGradeSelects(){
-  const children=[...new Set(D.members.map(m=>m.name))];
+  const src=D.accounts.length?D.accounts:D.members;
+  const children=[...new Set(src.map(m=>m.name))];
   const childSel=document.getElementById('g-child');
   childSel.innerHTML=children.map(c=>`<option>${c}</option>`).join('');
   const yr=CURRENT_YEAR();
