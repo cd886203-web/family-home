@@ -123,14 +123,20 @@ textarea{resize:vertical;min-height:72px}
 .modal-close:hover{color:var(--text)}
 
 /* ── CALENDAR ── */
-.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.cal-dname{font-size:10px;color:var(--text3);text-align:center;padding:4px 0}
-.cal-day{font-size:12px;text-align:center;padding:7px 2px;border-radius:var(--radius-sm);color:var(--text2);cursor:pointer;position:relative}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border-left:1px solid var(--border);border-top:1px solid var(--border)}
+.cal-dname{font-size:11px;color:var(--text3);text-align:center;padding:6px 0;font-weight:500;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.cal-dname.sun{color:#e53}
+.cal-dname.sat{color:#185FA5}
+.cal-day{min-height:80px;padding:4px 3px 4px 4px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;vertical-align:top;cursor:pointer}
 .cal-day:hover{background:var(--bg)}
-.cal-day.today{background:var(--accent);color:#fff;font-weight:600}
-.cal-day.other{color:var(--text3)}
-.cal-day .dot{width:4px;height:4px;border-radius:50%;background:var(--green);margin:1px auto 0}
+.cal-day.other .cal-day-num{color:var(--text3)}
+.cal-day-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:3px}
+.cal-day-num.today{background:var(--accent);color:#fff;font-weight:700}
+.cal-day-num.sun{color:#e53}
+.cal-day-num.sat{color:#185FA5}
+.cal-day-num.today.sun,.cal-day-num.today.sat{color:#fff}
+.cal-event-tag{font-size:10px;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;display:block}
 .event-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
 .event-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 
@@ -241,8 +247,8 @@ textarea{resize:vertical;min-height:72px}
   .grid3{grid-template-columns:1fr 1fr}
   .grid4{grid-template-columns:1fr 1fr}
 
-  .cal-day{min-height:50px;padding:4px 3px}
-  .cal-day-num{font-size:11px;width:20px;height:20px}
+  .cal-day{min-height:56px;padding:3px 2px}
+  .cal-day-num{width:20px;height:20px;font-size:10px}
   .cal-event-tag{font-size:9px;padding:1px 3px}
 
   .modal-overlay{align-items:center;padding:0 12px}
@@ -366,17 +372,14 @@ textarea{resize:vertical;min-height:72px}
       </div>
 
       <!-- 行事曆 -->
-      <div id="panel-calendar" class="panel">
-        <div class="card">
-          <div class="cal-nav">
-            <button class="btn" onclick="calMove(-1)"><i class="ti ti-chevron-left"></i></button>
-            <span id="cal-month-label" style="font-size:14px;font-weight:600"></span>
-            <button class="btn" onclick="calMove(1)"><i class="ti ti-chevron-right"></i></button>
-          </div>
-          <div class="cal-grid" id="cal-grid"></div>
+      <div id="panel-calendar" class="panel" style="padding:0">
+        <div style="padding:12px 16px 8px;display:flex;align-items:center;justify-content:space-between">
+          <button class="btn" onclick="calMove(-1)"><i class="ti ti-chevron-left"></i></button>
+          <span id="cal-month-label" style="font-size:16px;font-weight:700"></span>
+          <button class="btn" onclick="calMove(1)"><i class="ti ti-chevron-right"></i></button>
         </div>
-        <div class="section-head"><div class="section-title">即將到來的活動</div></div>
-        <div id="event-list"></div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div id="event-list" style="padding:0 16px 16px"></div>
       </div>
 
       <!-- 待辦清單 -->
@@ -970,31 +973,47 @@ function renderCalendar(){
   const first=new Date(calYear,calMonth,1).getDay();
   const days=new Date(calYear,calMonth+1,0).getDate();
   const now=new Date();
+  const todayStr=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const dnames=['日','一','二','三','四','五','六'];
   let html='';
-  ['日','一','二','三','四','五','六'].forEach(d=>html+=`<div class="cal-dname">${d}</div>`);
-  for(let i=0;i<first;i++)html+=`<div class="cal-day other"></div>`;
+  dnames.forEach((d,i)=>html+=`<div class="cal-dname${i===0?' sun':i===6?' sat':''}">${d}</div>`);
+  // leading blanks
+  for(let i=0;i<first;i++){
+    const prevDate=new Date(calYear,calMonth,-(first-1-i));
+    html+=`<div class="cal-day other"><span class="cal-day-num">${prevDate.getDate()}</span></div>`;
+  }
   for(let d=1;d<=days;d++){
     const ds=`${calYear}-${pad(calMonth+1)}-${pad(d)}`;
-    const isT=d===now.getDate()&&calMonth===now.getMonth()&&calYear===now.getFullYear();
-    const evts=D.events.filter(e=>e.date===ds);
+    const isT=ds===todayStr;
+    const dow=(first+d-1)%7;
+    const isSun=dow===0, isSat=dow===6;
+    const evts=D.events.filter(e=>e.date===ds).sort((a,b)=>a.name.localeCompare(b.name));
     const todos=D.todos.filter(t=>t.date===ds&&!t.done);
+    const numCls='cal-day-num'+(isT?' today':isSun?' sun':isSat?' sat':'');
     const tags=[
-      ...evts.map(e=>`<div class="cal-event-tag" style="background:${e.color};color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.name)}</div>`),
-      ...todos.map(t=>`<div class="cal-event-tag" style="background:var(--border);color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">✓ ${esc(t.text)}</div>`)
+      ...evts.map(e=>`<span class="cal-event-tag" style="background:${e.color};color:#fff">${esc(e.name)}</span>`),
+      ...todos.map(t=>`<span class="cal-event-tag" style="background:var(--border);color:var(--text2)">✓ ${esc(t.text)}</span>`)
     ].join('');
-    html+=`<div class="cal-day${isT?' today':''}" style="align-items:flex-start;text-align:left;padding:4px 3px">
-      <div class="cal-day-num${isT?' today':''}" style="${isT?'':'width:auto;height:auto;border-radius:0;background:none;color:var(--text2)'}">${d}</div>
-      <div style="display:flex;flex-direction:column;gap:2px;width:100%;margin-top:2px">${tags}</div>
+    html+=`<div class="cal-day">
+      <span class="${numCls}">${d}</span>
+      ${tags}
     </div>`;
   }
+  // trailing blanks
+  const total=first+days;
+  const trail=(7-total%7)%7;
+  for(let i=1;i<=trail;i++) html+=`<div class="cal-day other"><span class="cal-day-num">${i}</span></div>`;
   document.getElementById('cal-grid').innerHTML=html;
+  // upcoming events list
   const sorted=[...D.events].sort((a,b)=>a.date.localeCompare(b.date));
-  document.getElementById('event-list').innerHTML=sorted.length?sorted.map(e=>`
+  const upcoming=sorted.filter(e=>e.date>=todayStr);
+  const listEl=document.getElementById('event-list');
+  if(listEl) listEl.innerHTML=upcoming.length?`<div class="section-head" style="margin-top:12px"><div class="section-title">即將到來的活動</div></div>`+upcoming.map(e=>`
     <div class="event-item">
       <div class="event-dot" style="background:${e.color}"></div>
       <div style="flex:1"><div style="font-size:13px">${esc(e.name)}</div><div style="font-size:11px;color:var(--text3)">${fmtDate(e.date)}</div></div>
       ${isAdmin()?`<span class="del-btn" onclick="del('events','${e._id}')"><i class="ti ti-trash"></i></span>`:''}
-    </div>`).join(''):'<div class="empty"><i class="ti ti-calendar"></i>尚無活動</div>';
+    </div>`).join(''):'';
 }
 function calMove(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
 async function saveEvent(){
