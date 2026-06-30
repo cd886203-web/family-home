@@ -1028,10 +1028,13 @@ function renderCalendar(){
     const isSun=dow===0, isSat=dow===6;
     const evts=D.events.filter(e=>e.date===ds).sort((a,b)=>a.name.localeCompare(b.name));
     const todos=D.todos.filter(t=>t.date===ds&&!t.done);
+    const gRec=D.garbage.find(g=>g.date===ds);
     const numCls='cal-day-num'+(isT?' today':isSun?' sun':isSat?' sat':'');
+    const gTag=gRec?`<span class="cal-event-tag" style="background:${gRec.done?'var(--green)':'#888'};color:#fff;opacity:0.85">🗑 ${esc(gRec.name)}</span>`:'';
     const tags=[
       ...evts.map(e=>`<span class="cal-event-tag" style="background:${e.color};color:#fff">${esc(e.name)}</span>`),
-      ...todos.map(t=>`<span class="cal-event-tag" style="background:var(--border);color:var(--text2)">✓ ${esc(t.text)}</span>`)
+      ...todos.map(t=>`<span class="cal-event-tag" style="background:var(--border);color:var(--text2)">✓ ${esc(t.text)}</span>`),
+      gTag
     ].join('');
     html+=`<div class="cal-day" onclick="openDayView('${ds}')">
       <span class="${numCls}">${d}</span>
