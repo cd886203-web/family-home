@@ -891,7 +891,7 @@ function renderForCol(col){
     todos:()=>{renderTodo();renderBulletin();renderCalendar();},ledger:renderLedger,
     shopping:renderShopping,memos:renderMemo,members:()=>{renderMembers();renderGrades();},
     album:renderAlbum,accounts:()=>{renderSettings();renderMembers();},grades:renderGrades,
-    garbage:renderGarbage};
+    garbage:()=>{renderGarbage();renderCalendar();}};
   if(map[col])map[col]();
 }
 
