@@ -1506,8 +1506,12 @@ function renderSettings(){
 async function saveCfg(){
   const name=document.getElementById('cfg-sitename').value.trim()||'我家的家';
   syncDot('syncing');
-  await db.collection('config').doc('site').set({sitename:name});
-  syncDot('synced');alert('網站名稱已更新');
+  try{
+    await db.collection('config').doc('site').set({sitename:name});
+    D.config.sitename=name;
+    applySiteName(name);
+    syncDot('synced');alert('網站名稱已更新');
+  }catch(e){syncDot('');alert('儲存失敗：'+e.message);}
 }
 function applySiteName(name){
   document.getElementById('sidebar-sitename').innerHTML=`<i class="ti ti-home"></i> ${esc(name)}`;
