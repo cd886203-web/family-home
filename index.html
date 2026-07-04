@@ -419,17 +419,28 @@ textarea{resize:vertical;min-height:72px}
             <span id="ledger-month-label" style="font-size:14px;font-weight:600;min-width:80px;text-align:center"></span>
             <button class="btn" onclick="ledgerMonthMove(1)"><i class="ti ti-chevron-right"></i></button>
           </div>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn" id="view-chart-btn" onclick="setLedgerView('chart',this)" style="background:var(--accent);color:#fff;border-color:var(--accent)"><i class="ti ti-chart-donut"></i> 圖表</button>
             <button class="btn" id="view-list-btn"  onclick="setLedgerView('list',this)"><i class="ti ti-list"></i> 明細</button>
             <button class="btn" id="view-log-btn"   onclick="setLedgerView('log',this)"><i class="ti ti-history"></i> 紀錄</button>
+            <button class="btn" id="view-range-btn" onclick="toggleLedgerRange()"><i class="ti ti-calendar-search"></i> 區間</button>
           </div>
+        </div>
+        <!-- 日期區間列 -->
+        <div id="ledger-range-row" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
+          <span style="font-size:13px;color:var(--text2);white-space:nowrap">查詢區間：</span>
+          <input type="date" id="range-from" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);font-size:13px">
+          <span style="color:var(--text3)">～</span>
+          <input type="date" id="range-to" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);font-size:13px">
+          <button class="btn btn-primary" style="padding:4px 14px;font-size:13px" onclick="applyLedgerRange()"><i class="ti ti-search"></i> 查詢</button>
+          <button class="btn" style="padding:4px 10px;font-size:13px" onclick="clearLedgerRange()">清除</button>
+          <span id="range-hint" style="font-size:12px;color:var(--accent)"></span>
         </div>
 
         <!-- 統計卡 -->
         <div class="grid4" style="margin-bottom:14px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
-          <div class="metric"><div class="metric-label">本月收入</div><div class="metric-val amount-in" id="stat-in">$0</div></div>
-          <div class="metric"><div class="metric-label">本月支出</div><div class="metric-val amount-out" id="stat-out">$0</div></div>
+          <div class="metric"><div class="metric-label" id="stat-in-label">本月收入</div><div class="metric-val amount-in" id="stat-in">$0</div></div>
+          <div class="metric"><div class="metric-label" id="stat-out-label">本月支出</div><div class="metric-val amount-out" id="stat-out">$0</div></div>
           <div class="metric"><div class="metric-label">結餘</div><div class="metric-val" id="stat-bal">$0</div></div>
           <div class="metric"><div class="metric-label">消費筆數</div><div class="metric-val" id="stat-count">0</div></div>
         </div>
@@ -1163,6 +1174,7 @@ async function toggleTodo(id,done){ syncDot('syncing'); await db.collection('tod
 // ══════════════════════════════════════════
 // ── 帳本月份導覽 ──
 let ledgerYear=new Date().getFullYear(), ledgerMonth=new Date().getMonth()+1;
+let ledgerRangeMode=false, ledgerRangeFrom='', ledgerRangeTo='';
 function ledgerMonthMove(d){
   ledgerMonth+=d;
   if(ledgerMonth>12){ledgerMonth=1;ledgerYear++;}
@@ -1191,11 +1203,42 @@ function setLedgerView(mode,el){
 const CAT_COLORS=['#534AB7','#1D9E75','#D85A30','#BA7517','#185FA5','#639922','#D4537E','#888780'];
 const ICON_MAP={飲食:'ti-shopping-bag',交通:'ti-bus',教育:'ti-school',水電費:'ti-bolt',收入:'ti-cash',醫療:'ti-stethoscope',娛樂:'ti-device-gamepad',購物:'ti-shirt',其他:'ti-dots'};
 
+function toggleLedgerRange(){
+  ledgerRangeMode=!ledgerRangeMode;
+  const row=document.getElementById('ledger-range-row');
+  const btn=document.getElementById('view-range-btn');
+  const nav=document.querySelector('#panel-ledger .btn[onclick="ledgerMonthMove(-1)"]')?.parentElement;
+  row.style.display=ledgerRangeMode?'flex':'none';
+  btn.style.cssText=ledgerRangeMode?'background:var(--accent);color:#fff;border-color:var(--accent)':'';
+  if(!ledgerRangeMode){ledgerRangeFrom='';ledgerRangeTo='';document.getElementById('range-hint').textContent='';renderLedger();}
+}
+function applyLedgerRange(){
+  const f=document.getElementById('range-from').value;
+  const t=document.getElementById('range-to').value;
+  if(!f||!t){alert('請選擇起始與結束日期');return;}
+  if(f>t){alert('起始日期不可晚於結束日期');return;}
+  ledgerRangeFrom=f;ledgerRangeTo=t;
+  document.getElementById('range-hint').textContent=`${f} ～ ${t}`;
+  renderLedger();
+}
+function clearLedgerRange(){
+  ledgerRangeFrom='';ledgerRangeTo='';
+  document.getElementById('range-from').value='';
+  document.getElementById('range-to').value='';
+  document.getElementById('range-hint').textContent='';
+  renderLedger();
+}
 function renderLedger(){
+  const isRange=ledgerRangeMode&&ledgerRangeFrom&&ledgerRangeTo;
   const label=document.getElementById('ledger-month-label');
-  if(label) label.textContent=`${ledgerYear} 年 ${ledgerMonth} 月`;
+  if(label) label.textContent=isRange?`${ledgerRangeFrom} ～ ${ledgerRangeTo}`:`${ledgerYear} 年 ${ledgerMonth} 月`;
+  const inLbl=document.getElementById('stat-in-label');
+  const outLbl=document.getElementById('stat-out-label');
+  if(inLbl) inLbl.textContent=isRange?'區間收入':'本月收入';
+  if(outLbl) outLbl.textContent=isRange?'區間支出':'本月支出';
 
   const monthly=D.ledger.filter(x=>{
+    if(isRange) return x.date>=ledgerRangeFrom && x.date<=ledgerRangeTo;
     const d=new Date(x.date+'T00:00:00');
     return d.getMonth()+1===ledgerMonth && d.getFullYear()===ledgerYear;
   });
