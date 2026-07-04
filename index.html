@@ -999,6 +999,8 @@ function show(id,el){
   if(target)target.classList.add('active');
   document.getElementById('page-title').textContent=TITLES[id];
   currentPanel=id;
+  if(id==='points') renderPoints();
+  if(id==='settings') renderSettings();
 }
 
 // ── 手機導覽 ──
