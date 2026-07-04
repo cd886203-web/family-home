@@ -149,6 +149,8 @@ textarea{resize:vertical;min-height:72px}
 .todo-meta{font-size:11px;color:var(--text3)}
 .shop-qty{font-size:11px;color:var(--text3);min-width:32px;text-align:right}
 .del-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px}
+.emoji-opt{font-size:22px;cursor:pointer;padding:4px;border-radius:6px;border:2px solid transparent;transition:border-color .15s}
+.emoji-opt:hover{border-color:var(--accent)}.emoji-opt.selected{border-color:var(--accent);background:var(--accent-light)}
 .del-btn:hover{color:var(--red);background:var(--red-light)}
 
 /* ── MEMBERS ── */
@@ -688,7 +690,24 @@ textarea{resize:vertical;min-height:72px}
   <input type="hidden" id="task-edit-id">
   <div class="form-group"><label>任務名稱</label><input id="task-title" placeholder="例：整理房間"></div>
   <div class="form-group"><label>獲得積分</label><input id="task-points" type="number" min="1" value="10"></div>
-  <div class="form-group"><label>圖示 Emoji</label><input id="task-icon" placeholder="🧹" style="font-size:20px;width:60px"></div>
+  <div class="form-group">
+    <label>圖示 Emoji
+      <span id="task-icon-preview" style="font-size:22px;margin-left:8px;vertical-align:middle">⭐</span>
+    </label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="task-icon-picker">
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','⭐')">⭐</span><span class="emoji-opt" onclick="pickEmoji('task-icon','🧹')">🧹</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','🧺')">🧺</span><span class="emoji-opt" onclick="pickEmoji('task-icon','🍽️')">🍽️</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','🛁')">🛁</span><span class="emoji-opt" onclick="pickEmoji('task-icon','🪥')">🪥</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','🐕')">🐕</span><span class="emoji-opt" onclick="pickEmoji('task-icon','🌿')">🌿</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','📚')">📚</span><span class="emoji-opt" onclick="pickEmoji('task-icon','✏️')">✏️</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','🎯')">🎯</span><span class="emoji-opt" onclick="pickEmoji('task-icon','🏃')">🏃</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','💪')">💪</span><span class="emoji-opt" onclick="pickEmoji('task-icon','🍳')">🍳</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','🛒')">🛒</span><span class="emoji-opt" onclick="pickEmoji('task-icon','🧼')">🧼</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','🪴')">🪴</span><span class="emoji-opt" onclick="pickEmoji('task-icon','♻️')">♻️</span>
+      <span class="emoji-opt" onclick="pickEmoji('task-icon','🎵')">🎵</span><span class="emoji-opt" onclick="pickEmoji('task-icon','🏆')">🏆</span>
+    </div>
+    <input id="task-icon" placeholder="自訂 Emoji" style="width:100px;font-size:18px" oninput="document.getElementById('task-icon-preview').textContent=this.value||'⭐'">
+  </div>
   <div class="form-group"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="task-active" checked> 啟用中</label></div>
   <button class="btn btn-primary" style="width:100%" onclick="saveTask()">儲存</button>
 </div></div>
@@ -699,7 +718,24 @@ textarea{resize:vertical;min-height:72px}
   <input type="hidden" id="shop-edit-id">
   <div class="form-group"><label>獎品名稱</label><input id="shop-name" placeholder="例：看一場電影"></div>
   <div class="form-group"><label>所需積分</label><input id="shop-points" type="number" min="1" value="50"></div>
-  <div class="form-group"><label>圖示 Emoji</label><input id="shop-icon" placeholder="🎬" style="font-size:20px;width:60px"></div>
+  <div class="form-group">
+    <label>圖示 Emoji
+      <span id="shop-icon-preview" style="font-size:22px;margin-left:8px;vertical-align:middle">🎁</span>
+    </label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🎁')">🎁</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🎬')">🎬</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🎮')">🎮</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🍕')">🍕</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🍦')">🍦</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🍰')">🍰</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🎨')">🎨</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🎠')">🎠</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🏖️')">🏖️</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🧸')">🧸</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','📱')">📱</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','💻')">💻</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🎤')">🎤</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🎵')">🎵</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🥇')">🥇</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🏆')">🏆</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🎡')">🎡</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🎢')">🎢</span>
+      <span class="emoji-opt" onclick="pickEmoji('shop-icon','🍔')">🍔</span><span class="emoji-opt" onclick="pickEmoji('shop-icon','🎪')">🎪</span>
+    </div>
+    <input id="shop-icon" placeholder="自訂 Emoji" style="width:100px;font-size:18px" oninput="document.getElementById('shop-icon-preview').textContent=this.value||'🎁'">
+  </div>
   <div class="form-group"><label>庫存數量（0=無限）</label><input id="shop-stock" type="number" min="0" value="0"></div>
   <button class="btn btn-primary" style="width:100%" onclick="saveShopItem()">儲存</button>
 </div></div>
@@ -1821,12 +1857,23 @@ function renderPtLogs(){
 }
 
 // ── 任務操作 ──
+function pickEmoji(inputId,emoji){
+  document.getElementById(inputId).value=emoji;
+  const previewId=inputId.replace('-icon','-icon-preview');
+  const prev=document.getElementById(previewId);
+  if(prev) prev.textContent=emoji;
+  document.querySelectorAll(`#modal-add-${inputId.split('-')[0]} .emoji-opt`).forEach(el=>{
+    el.classList.toggle('selected', el.textContent.trim()===emoji);
+  });
+}
 function openAddTask(){
   document.getElementById('task-edit-id').value='';
   document.getElementById('task-title').value='';
   document.getElementById('task-points').value='10';
   document.getElementById('task-icon').value='';
+  document.getElementById('task-icon-preview').textContent='⭐';
   document.getElementById('task-active').checked=true;
+  document.querySelectorAll('#modal-add-task .emoji-opt').forEach(el=>el.classList.remove('selected'));
   openModal('modal-add-task');
 }
 function openEditTask(id){
@@ -1835,7 +1882,11 @@ function openEditTask(id){
   document.getElementById('task-title').value=t.title;
   document.getElementById('task-points').value=t.points;
   document.getElementById('task-icon').value=t.icon||'';
+  document.getElementById('task-icon-preview').textContent=t.icon||'⭐';
   document.getElementById('task-active').checked=!!t.active;
+  document.querySelectorAll('#modal-add-task .emoji-opt').forEach(el=>{
+    el.classList.toggle('selected', el.textContent.trim()===(t.icon||''));
+  });
   openModal('modal-add-task');
 }
 async function saveTask(){
@@ -1879,7 +1930,9 @@ function openAddShop(){
   document.getElementById('shop-name').value='';
   document.getElementById('shop-points').value='50';
   document.getElementById('shop-icon').value='';
+  document.getElementById('shop-icon-preview').textContent='🎁';
   document.getElementById('shop-stock').value='0';
+  document.querySelectorAll('#modal-add-shop .emoji-opt').forEach(el=>el.classList.remove('selected'));
   openModal('modal-add-shop');
 }
 function openEditShop(id){
@@ -1888,7 +1941,11 @@ function openEditShop(id){
   document.getElementById('shop-name').value=item.name;
   document.getElementById('shop-points').value=item.points;
   document.getElementById('shop-icon').value=item.icon||'';
+  document.getElementById('shop-icon-preview').textContent=item.icon||'🎁';
   document.getElementById('shop-stock').value=item.stock||0;
+  document.querySelectorAll('#modal-add-shop .emoji-opt').forEach(el=>{
+    el.classList.toggle('selected', el.textContent.trim()===(item.icon||''));
+  });
   openModal('modal-add-shop');
 }
 async function saveShopItem(){
