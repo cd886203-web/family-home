@@ -339,6 +339,7 @@ textarea{resize:vertical;min-height:72px}
       <div class="nav-item" data-panel="shopping" onclick="show('shopping',this)"><i class="ti ti-shopping-cart"></i> 購物清單</div>
       <div class="nav-section">學習</div>
       <div class="nav-item" data-panel="grades" onclick="show('grades',this)"><i class="ti ti-school"></i> 成績記錄</div>
+      <div class="nav-item" data-panel="points" onclick="show('points',this)"><i class="ti ti-star"></i> 積分系統</div>
       <div class="nav-section">系統</div>
       <div class="nav-item" data-panel="settings" onclick="show('settings',this)"><i class="ti ti-settings"></i> 設定</div>
     </div>
@@ -503,6 +504,44 @@ textarea{resize:vertical;min-height:72px}
         <div id="grades-list"></div>
       </div>
 
+      <!-- 積分系統 -->
+      <div id="panel-points" class="panel">
+        <!-- 積分卡列 -->
+        <div id="points-cards" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <!-- 頁籤 -->
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+          <button class="btn" id="pt-tab-tasks"  onclick="setPtTab('tasks')"  style="background:var(--accent);color:#fff;border-color:var(--accent)"><i class="ti ti-list-check"></i> 任務牆</button>
+          <button class="btn" id="pt-tab-logs"   onclick="setPtTab('logs')"  ><i class="ti ti-history"></i> 紀錄</button>
+          <button class="btn" id="pt-tab-shop"   onclick="setPtTab('shop')"  ><i class="ti ti-shopping-bag"></i> 兌換商城</button>
+        </div>
+        <!-- 任務牆 -->
+        <div id="pt-view-tasks">
+          <div class="section-head">
+            <div class="section-title">任務牆</div>
+            <button class="btn btn-primary" id="btn-add-task" onclick="openAddTask()" style="display:none"><i class="ti ti-plus"></i> 新增任務</button>
+          </div>
+          <div id="pt-task-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>
+        </div>
+        <!-- 紀錄 -->
+        <div id="pt-view-logs" style="display:none">
+          <div class="section-head">
+            <div class="section-title">積分紀錄</div>
+            <select id="pt-log-filter" onchange="renderPtLogs()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);font-size:13px">
+              <option value="all">所有人</option>
+            </select>
+          </div>
+          <div id="pt-log-list"></div>
+        </div>
+        <!-- 商城 -->
+        <div id="pt-view-shop" style="display:none">
+          <div class="section-head">
+            <div class="section-title">兌換商城</div>
+            <button class="btn btn-primary" id="btn-add-shop" onclick="openAddShop()" style="display:none"><i class="ti ti-plus"></i> 新增獎品</button>
+          </div>
+          <div id="pt-shop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px"></div>
+        </div>
+      </div>
+
       <!-- 設定 -->
       <div id="panel-settings" class="panel">
         <div class="section-head"><div class="section-title">網站資訊</div></div>
@@ -643,6 +682,45 @@ textarea{resize:vertical;min-height:72px}
   <div id="modal-day-body"></div>
 </div></div>
 
+<!-- 新增任務 Modal -->
+<div class="modal-overlay" id="modal-add-task"><div class="modal">
+  <div class="modal-title">任務設定 <span class="modal-close" onclick="closeModal('modal-add-task')">×</span></div>
+  <input type="hidden" id="task-edit-id">
+  <div class="form-group"><label>任務名稱</label><input id="task-title" placeholder="例：整理房間"></div>
+  <div class="form-group"><label>獲得積分</label><input id="task-points" type="number" min="1" value="10"></div>
+  <div class="form-group"><label>圖示 Emoji</label><input id="task-icon" placeholder="🧹" style="font-size:20px;width:60px"></div>
+  <div class="form-group"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="task-active" checked> 啟用中</label></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveTask()">儲存</button>
+</div></div>
+
+<!-- 新增商品 Modal -->
+<div class="modal-overlay" id="modal-add-shop"><div class="modal">
+  <div class="modal-title">獎品設定 <span class="modal-close" onclick="closeModal('modal-add-shop')">×</span></div>
+  <input type="hidden" id="shop-edit-id">
+  <div class="form-group"><label>獎品名稱</label><input id="shop-name" placeholder="例：看一場電影"></div>
+  <div class="form-group"><label>所需積分</label><input id="shop-points" type="number" min="1" value="50"></div>
+  <div class="form-group"><label>圖示 Emoji</label><input id="shop-icon" placeholder="🎬" style="font-size:20px;width:60px"></div>
+  <div class="form-group"><label>庫存數量（0=無限）</label><input id="shop-stock" type="number" min="0" value="0"></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveShopItem()">儲存</button>
+</div></div>
+
+<!-- 手動加減分 Modal -->
+<div class="modal-overlay" id="modal-manual-pts"><div class="modal">
+  <div class="modal-title">手動調整積分 <span class="modal-close" onclick="closeModal('modal-manual-pts')">×</span></div>
+  <div class="form-group"><label>對象</label>
+    <select id="manual-child" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg2)"></select>
+  </div>
+  <div class="form-group"><label>類型</label>
+    <div style="display:flex;gap:8px">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="manual-type" value="1" checked> <span style="color:var(--green)">＋加分</span></label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="manual-type" value="-1"> <span style="color:var(--red)">－扣分</span></label>
+    </div>
+  </div>
+  <div class="form-group"><label>積分數量</label><input id="manual-amount" type="number" min="1" value="10"></div>
+  <div class="form-group"><label>備註</label><input id="manual-note" placeholder="例：表現很棒！"></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveManualPts()">確認</button>
+</div></div>
+
 <!-- 手機底部導覽 -->
 <div id="mob-overlay" onclick="closeMobMenu()"></div>
 <div id="mobile-more-menu">
@@ -650,6 +728,7 @@ textarea{resize:vertical;min-height:72px}
   <div class="mob-more-item" data-panel="members"  onclick="mobShow('members')" ><i class="ti ti-users"></i> 家庭成員</div>
   <div class="mob-more-item" data-panel="memo"     onclick="mobShow('memo')"    ><i class="ti ti-notebook"></i> 備忘錄</div>
   <div class="mob-more-item" data-panel="grades"   onclick="mobShow('grades')"  ><i class="ti ti-school"></i> 成績記錄</div>
+  <div class="mob-more-item" data-panel="points"  onclick="mobShow('points')"  ><i class="ti ti-star"></i> 積分系統</div>
   <div class="mob-more-item" data-panel="shopping" onclick="mobShow('shopping')"><i class="ti ti-shopping-cart"></i> 購物清單</div>
   <div class="mob-more-item" data-panel="settings" onclick="mobShow('settings')"><i class="ti ti-settings"></i> 設定</div>
   <div class="mob-more-item" onclick="doLogout()" style="color:var(--red)"><i class="ti ti-logout" style="color:var(--red)"></i> 登出（<span id="mob-username"></span>）</div>
@@ -682,7 +761,7 @@ let ledgerFilter = 'all';
 const D = {
   bulletins:[], events:[], todos:[], ledger:[], ledger_logs:[],
   shopping:[], memos:[], members:[], album:[],
-  accounts:[], grades:[], garbage:[], config:{ sitename:'我家的家' }
+  accounts:[], grades:[], garbage:[], point_tasks:[], point_shop:[], point_logs:[], config:{ sitename:'我家的家' }
 };
 
 const BUILT_IN_CFG = {
@@ -879,7 +958,7 @@ function syncDot(state){ const d=document.getElementById('sync-dot'); d.classNam
 
 function startListeners(){
   syncDot('syncing');
-  const cols=['bulletins','events','todos','ledger','ledger_logs','shopping','memos','members','album','accounts','grades','garbage'];
+  const cols=['bulletins','events','todos','ledger','ledger_logs','shopping','memos','members','album','accounts','grades','garbage','point_tasks','point_shop','point_logs'];
   let loaded=0;
   cols.forEach(col=>{
     const unsub=db.collection(col).onSnapshot(snap=>{
@@ -902,14 +981,15 @@ function renderForCol(col){
     todos:()=>{renderTodo();renderBulletin();renderCalendar();},ledger:renderLedger,
     shopping:renderShopping,memos:renderMemo,members:()=>{renderMembers();renderGrades();},
     album:renderAlbum,accounts:()=>{renderSettings();renderMembers();},grades:renderGrades,
-    garbage:()=>{renderGarbage();renderCalendar();}};
+    garbage:()=>{renderGarbage();renderCalendar();},
+    point_tasks:renderPoints,point_shop:renderPoints,point_logs:renderPoints};
   if(map[col])map[col]();
 }
 
 // ══════════════════════════════════════════
 //  NAVIGATION
 // ══════════════════════════════════════════
-const TITLES={bulletin:'公告欄',calendar:'行事曆',todo:'待辦清單',album:'相簿',members:'家庭成員',memo:'備忘錄',ledger:'家庭帳本',shopping:'購物清單',grades:'成績記錄',settings:'設定'};
+const TITLES={bulletin:'公告欄',calendar:'行事曆',todo:'待辦清單',album:'相簿',members:'家庭成員',memo:'備忘錄',ledger:'家庭帳本',shopping:'購物清單',grades:'成績記錄',points:'積分系統',settings:'設定'};
 let currentPanel='bulletin';
 function show(id,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -1602,6 +1682,274 @@ async function saveCfg(){
     syncDot('synced');alert('網站名稱已更新');
   }catch(e){syncDot('');alert('儲存失敗：'+e.message);}
 }
+// ══════════════════════════════════════════
+//  積分系統
+// ══════════════════════════════════════════
+let ptTab='tasks';
+function setPtTab(tab){
+  ptTab=tab;
+  ['tasks','logs','shop'].forEach(t=>{
+    document.getElementById('pt-view-'+t).style.display=t===tab?'block':'none';
+    const b=document.getElementById('pt-tab-'+t);
+    if(b) b.style.cssText=t===tab?'background:var(--accent);color:#fff;border-color:var(--accent)':'';
+  });
+  if(tab==='logs') renderPtLogs();
+  if(tab==='shop') renderPtShop();
+  if(tab==='tasks') renderPtTasks();
+}
+
+function ptBalance(username){
+  return D.point_logs.filter(l=>l.childUsername===username&&l.status==='approved')
+    .reduce((s,l)=>{
+      if(l.type==='redeem') return s-l.amount;
+      if(l.type==='manual') return s+(l.sign!=null?l.sign*l.amount:l.amount);
+      return s+l.amount;
+    },0);
+}
+
+function renderPoints(){
+  if(!document.getElementById('panel-points').classList.contains('active')) return;
+  // 積分卡
+  const children=D.accounts.filter(a=>a.role!=='admin');
+  const cardsEl=document.getElementById('points-cards');
+  if(cardsEl) cardsEl.innerHTML=children.map(c=>{
+    const bal=ptBalance(c.username);
+    const isMe=currentUser&&currentUser.username===c.username;
+    return `<div class="card" style="flex:1;min-width:130px;text-align:center;padding:14px 10px;position:relative">
+      ${isAdmin()?`<span class="del-btn" style="position:absolute;top:6px;right:6px;color:var(--accent)" onclick="openManualPts('${esc(c.username)}','${esc(c.name)}')"><i class="ti ti-plus"></i></span>`:''}
+      <div style="font-size:28px;font-weight:700;color:var(--accent)">${bal}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">${esc(c.name)}${isMe?' <span style=\'font-size:10px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px\'>我</span>':''}</div>
+      <div style="font-size:10px;color:var(--text3)">積分</div>
+    </div>`;
+  }).join('')||'<div style="color:var(--text3);font-size:13px">尚無成員</div>';
+  // 管理員按鈕顯示
+  const addTaskBtn=document.getElementById('btn-add-task');
+  const addShopBtn=document.getElementById('btn-add-shop');
+  if(addTaskBtn) addTaskBtn.style.display=isAdmin()?'':'none';
+  if(addShopBtn) addShopBtn.style.display=isAdmin()?'':'none';
+  // 根據目前 tab 渲染
+  if(ptTab==='tasks') renderPtTasks();
+  else if(ptTab==='logs') renderPtLogs();
+  else if(ptTab==='shop') renderPtShop();
+}
+
+function renderPtTasks(){
+  const el=document.getElementById('pt-task-list');
+  if(!el) return;
+  const tasks=D.point_tasks.filter(t=>isAdmin()||t.active);
+  if(!tasks.length){el.innerHTML='<div class="empty"><i class="ti ti-list-check"></i>尚無任務</div>';return;}
+  el.innerHTML=tasks.map(t=>`
+    <div class="card" style="text-align:center;padding:16px 10px;position:relative">
+      ${isAdmin()?`<span class="del-btn" style="position:absolute;top:6px;right:28px;color:var(--accent)" onclick="openEditTask('${t._id}')"><i class="ti ti-pencil"></i></span>
+      <span class="del-btn" style="position:absolute;top:6px;right:6px" onclick="del('point_tasks','${t._id}')"><i class="ti ti-trash"></i></span>`:''}
+      <div style="font-size:32px;margin-bottom:6px">${esc(t.icon||'⭐')}</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${esc(t.title)}</div>
+      <div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:10px">+${t.points} 積分</div>
+      ${!t.active?'<div style="font-size:11px;color:var(--text3);margin-bottom:6px">（已停用）</div>':''}
+      ${isAdmin()?`<select onchange="ptTaskApproveFor(this,'${t._id}','${esc(t.title)}',${t.points})" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);font-size:12px">
+        <option value="">核發給...</option>
+        ${D.accounts.filter(a=>a.role!=='admin').map(a=>`<option value="${esc(a.username)}">${esc(a.name)}</option>`).join('')}
+      </select>`:`<button class="btn btn-primary" style="width:100%;padding:5px" onclick="ptRequestTask('${t._id}','${esc(t.title)}',${t.points})">完成任務</button>`}
+    </div>`).join('');
+}
+
+function renderPtShop(){
+  const el=document.getElementById('pt-shop-grid');
+  if(!el) return;
+  const items=D.point_shop;
+  if(!items.length){el.innerHTML='<div class="empty"><i class="ti ti-shopping-bag"></i>商城尚無商品</div>';return;}
+  el.innerHTML=items.map(item=>{
+    const stockTxt=item.stock>0?`庫存 ${item.stock}`:'無限';
+    return `<div class="card" style="text-align:center;padding:16px 10px;position:relative">
+      ${isAdmin()?`<span class="del-btn" style="position:absolute;top:6px;right:28px;color:var(--accent)" onclick="openEditShop('${item._id}')"><i class="ti ti-pencil"></i></span>
+      <span class="del-btn" style="position:absolute;top:6px;right:6px" onclick="del('point_shop','${item._id}')"><i class="ti ti-trash"></i></span>`:''}
+      <div style="font-size:36px;margin-bottom:6px">${esc(item.icon||'🎁')}</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${esc(item.name)}</div>
+      <div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:4px">${item.points} 積分</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">${stockTxt}</div>
+      ${!isAdmin()?`<button class="btn btn-primary" style="width:100%;padding:5px" onclick="ptRedeem('${item._id}','${esc(item.name)}',${item.points})">兌換</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderPtLogs(){
+  const filterEl=document.getElementById('pt-log-filter');
+  const el=document.getElementById('pt-log-list');
+  if(!el) return;
+  // rebuild filter options
+  const children=D.accounts.filter(a=>a.role!=='admin');
+  if(filterEl){
+    filterEl.innerHTML=`<option value="all">所有人</option>`
+      +children.map(c=>`<option value="${esc(c.username)}">${esc(c.name)}</option>`).join('');
+  }
+  const sel=filterEl?filterEl.value:'all';
+  let logs=[...D.point_logs];
+  // non-admin only see own logs
+  if(!isAdmin()) logs=logs.filter(l=>l.childUsername===currentUser.username);
+  else if(sel!=='all') logs=logs.filter(l=>l.childUsername===sel);
+  logs.sort((a,b)=>b.createdAt?.localeCompare?.(a.createdAt)||0);
+  if(!logs.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>尚無紀錄</div>';return;}
+  const typeLabel={earn:'完成任務',redeem:'兌換獎品',manual:'手動調整'};
+  const typeColor={earn:'var(--green)',redeem:'var(--accent)',manual:'#BA7517'};
+  el.innerHTML=logs.map(l=>{
+    const child=D.accounts.find(a=>a.username===l.childUsername);
+    const sign=l.type==='redeem'?'-':'+';
+    const col=l.type==='redeem'?'var(--red)':'var(--green)';
+    const statusBadge=l.status==='pending'?
+      `<span style="font-size:10px;background:#f0a50022;color:#BA7517;padding:1px 6px;border-radius:4px">待確認</span>`:
+      l.status==='approved'?`<span style="font-size:10px;background:var(--green)22;color:var(--green);padding:1px 6px;border-radius:4px">已核准</span>`:
+      `<span style="font-size:10px;background:var(--red)22;color:var(--red);padding:1px 6px;border-radius:4px">已拒絕</span>`;
+    const approveBtn=isAdmin()&&l.status==='pending'?
+      `<div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn btn-primary" style="padding:2px 10px;font-size:12px" onclick="ptApprove('${l._id}')">核准</button>
+        <button class="btn" style="padding:2px 10px;font-size:12px;color:var(--red)" onclick="ptReject('${l._id}')">拒絕</button>
+      </div>`:'';
+    return `<div class="event-item" style="align-items:flex-start">
+      <div style="width:36px;height:36px;border-radius:50%;background:${typeColor[l.type]}22;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">
+        ${l.type==='earn'?'⭐':l.type==='redeem'?'🎁':'✏️'}
+      </div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${esc(child?child.name:l.childUsername)} · ${esc(l.note||typeLabel[l.type])}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtDate(l.date)} ${statusBadge}</div>
+        ${approveBtn}
+      </div>
+      <div style="font-size:16px;font-weight:700;color:${col};white-space:nowrap">${sign}${l.amount}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── 任務操作 ──
+function openAddTask(){
+  document.getElementById('task-edit-id').value='';
+  document.getElementById('task-title').value='';
+  document.getElementById('task-points').value='10';
+  document.getElementById('task-icon').value='';
+  document.getElementById('task-active').checked=true;
+  openModal('modal-add-task');
+}
+function openEditTask(id){
+  const t=D.point_tasks.find(x=>x._id===id); if(!t) return;
+  document.getElementById('task-edit-id').value=id;
+  document.getElementById('task-title').value=t.title;
+  document.getElementById('task-points').value=t.points;
+  document.getElementById('task-icon').value=t.icon||'';
+  document.getElementById('task-active').checked=!!t.active;
+  openModal('modal-add-task');
+}
+async function saveTask(){
+  const id=document.getElementById('task-edit-id').value;
+  const title=document.getElementById('task-title').value.trim();
+  const points=parseInt(document.getElementById('task-points').value)||10;
+  const icon=document.getElementById('task-icon').value.trim()||'⭐';
+  const active=document.getElementById('task-active').checked;
+  if(!title){alert('請填寫任務名稱');return;}
+  const data={title,points,icon,active};
+  if(id) await db.collection('point_tasks').doc(id).update(data);
+  else await db.collection('point_tasks').add(data);
+  closeModal('modal-add-task');
+}
+async function ptTaskApproveFor(sel,taskId,taskTitle,points){
+  const username=sel.value; sel.value='';
+  if(!username) return;
+  const child=D.accounts.find(a=>a.username===username);
+  if(!child) return;
+  await db.collection('point_logs').add({
+    childUsername:username,childName:child.name,
+    type:'earn',amount:points,note:`完成任務：${taskTitle}`,
+    taskId,date:nowDate(),status:'approved',
+    approvedBy:currentUser.name,createdAt:ts()
+  });
+  alert(`已核發 ${points} 積分給 ${child.name}`);
+}
+async function ptRequestTask(taskId,taskTitle,points){
+  if(!currentUser) return;
+  await db.collection('point_logs').add({
+    childUsername:currentUser.username,childName:currentUser.name,
+    type:'earn',amount:points,note:`完成任務：${taskTitle}`,
+    taskId,date:nowDate(),status:'pending',createdAt:ts()
+  });
+  alert('已送出完成申請，等待家長確認');
+}
+
+// ── 兌換商城 ──
+function openAddShop(){
+  document.getElementById('shop-edit-id').value='';
+  document.getElementById('shop-name').value='';
+  document.getElementById('shop-points').value='50';
+  document.getElementById('shop-icon').value='';
+  document.getElementById('shop-stock').value='0';
+  openModal('modal-add-shop');
+}
+function openEditShop(id){
+  const item=D.point_shop.find(x=>x._id===id); if(!item) return;
+  document.getElementById('shop-edit-id').value=id;
+  document.getElementById('shop-name').value=item.name;
+  document.getElementById('shop-points').value=item.points;
+  document.getElementById('shop-icon').value=item.icon||'';
+  document.getElementById('shop-stock').value=item.stock||0;
+  openModal('modal-add-shop');
+}
+async function saveShopItem(){
+  const id=document.getElementById('shop-edit-id').value;
+  const name=document.getElementById('shop-name').value.trim();
+  const points=parseInt(document.getElementById('shop-points').value)||50;
+  const icon=document.getElementById('shop-icon').value.trim()||'🎁';
+  const stock=parseInt(document.getElementById('shop-stock').value)||0;
+  if(!name){alert('請填寫獎品名稱');return;}
+  const data={name,points,icon,stock};
+  if(id) await db.collection('point_shop').doc(id).update(data);
+  else await db.collection('point_shop').add(data);
+  closeModal('modal-add-shop');
+}
+async function ptRedeem(itemId,itemName,points){
+  if(!currentUser) return;
+  const bal=ptBalance(currentUser.username);
+  if(bal<points){alert(`積分不足！目前 ${bal} 分，需要 ${points} 分`);return;}
+  if(!confirm(`確定用 ${points} 積分兌換「${itemName}」？`)) return;
+  await db.collection('point_logs').add({
+    childUsername:currentUser.username,childName:currentUser.name,
+    type:'redeem',amount:points,note:`兌換：${itemName}`,
+    shopId:itemId,date:nowDate(),status:'pending',createdAt:ts()
+  });
+  alert('兌換申請已送出，等待家長確認');
+}
+
+// ── 手動加減分 ──
+function openManualPts(username,name){
+  const sel=document.getElementById('manual-child');
+  sel.innerHTML=D.accounts.filter(a=>a.role!=='admin')
+    .map(a=>`<option value="${esc(a.username)}"${a.username===username?' selected':''}>${esc(a.name)}</option>`).join('');
+  document.getElementById('manual-amount').value='10';
+  document.getElementById('manual-note').value='';
+  openModal('modal-manual-pts');
+}
+async function saveManualPts(){
+  const username=document.getElementById('manual-child').value;
+  const typeVal=document.querySelector('input[name="manual-type"]:checked').value;
+  const amount=parseInt(document.getElementById('manual-amount').value)||0;
+  const note=document.getElementById('manual-note').value.trim();
+  if(!username||amount<=0){alert('請填寫完整資料');return;}
+  const child=D.accounts.find(a=>a.username===username);
+  await db.collection('point_logs').add({
+    childUsername:username,childName:child?child.name:username,
+    type:'manual',amount,note:note||(typeVal==='1'?'手動加分':'手動扣分'),
+    date:nowDate(),status:'approved',
+    approvedBy:currentUser.name,createdAt:ts(),
+    sign:parseInt(typeVal)
+  });
+  closeModal('modal-manual-pts');
+  // 手動扣分要用負值：修正 ptBalance 判斷
+  alert(`已${typeVal==='1'?'增加':'扣除'} ${amount} 積分`);
+}
+
+// ── 審核 ──
+async function ptApprove(logId){
+  await db.collection('point_logs').doc(logId).update({status:'approved',approvedBy:currentUser.name});
+}
+async function ptReject(logId){
+  await db.collection('point_logs').doc(logId).update({status:'rejected'});
+}
+
 function applySiteName(name){
   document.getElementById('sidebar-sitename').innerHTML=`<i class="ti ti-home"></i> ${esc(name)}`;
   document.title=name;document.getElementById('login-site-title').textContent=name;
