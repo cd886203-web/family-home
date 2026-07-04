@@ -622,7 +622,9 @@ textarea{resize:vertical;min-height:72px}
     <div class="form-group"><label>金額</label><input type="number" id="l-amount" placeholder="金額" min="0"></div>
     <div class="form-group"><label>日期</label><input type="date" id="l-date"></div>
   </div>
-  <div class="form-group"><label>記帳人</label><input id="l-who" placeholder="記帳人"></div>
+  <div class="form-group"><label>記帳人</label>
+    <select id="l-who" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);font-size:14px"></select>
+  </div>
   <button class="btn btn-primary" style="width:100%" onclick="saveLedger()">儲存帳目</button>
 </div></div>
 
@@ -1077,6 +1079,7 @@ function handleAdd(){
   document.getElementById('t-date').value=nowDate();
   document.getElementById('l-date').value=nowDate();
   document.getElementById('g-date').value=nowDate();
+  if(currentPanel==='ledger') fillLWho(currentUser?.name||'');
   if(map[currentPanel])openModal(map[currentPanel]);
 }
 function openModal(id){document.getElementById(id).classList.add('open')}
@@ -1469,6 +1472,15 @@ function filterLedgerCat(cat){
   ledgerCatFilter=cat;
   renderLedger();
 }
+function fillLWho(selected){
+  const sel=document.getElementById('l-who');
+  if(!sel) return;
+  const names=D.accounts.map(a=>a.name);
+  sel.innerHTML=names.map(n=>`<option value="${esc(n)}"${n===selected?' selected':''}>${esc(n)}</option>`).join('');
+  if(selected && !names.includes(selected)){
+    sel.innerHTML+=`<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
+  }
+}
 function openLedgerEdit(id){
   const x=D.ledger.find(r=>r._id===id);
   if(!x)return;
@@ -1478,7 +1490,7 @@ function openLedgerEdit(id){
   document.getElementById('l-name').value=x.name;
   document.getElementById('l-amount').value=x.amount;
   document.getElementById('l-date').value=x.date;
-  document.getElementById('l-who').value=x.who||'';
+  fillLWho(x.who||currentUser?.name||'');
   document.getElementById('modal-ledger-title').innerHTML='編輯帳目 <span class="modal-close" onclick="closeModal(\'modal-ledger\')">×</span>';
   openModal('modal-ledger');
 }
@@ -1496,7 +1508,7 @@ async function saveLedger(){
     await db.collection('ledger').add({...data,createdAt:ts()});
   }
   await db.collection('ledger_logs').add({op,name,amount:data.amount,cat:data.cat,type:data.type,who:data.who,by:currentUser?.name||'',at:ts()});
-  document.getElementById('l-name').value='';document.getElementById('l-amount').value='';document.getElementById('l-who').value='';document.getElementById('l-edit-id').value='';
+  document.getElementById('l-name').value='';document.getElementById('l-amount').value='';document.getElementById('l-edit-id').value='';fillLWho(currentUser?.name||'');
   document.getElementById('modal-ledger-title').innerHTML='新增帳目 <span class="modal-close" onclick="closeModal(\'modal-ledger\')">×</span>';
   closeModal('modal-ledger');syncDot('synced');
 }
