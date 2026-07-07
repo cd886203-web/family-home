@@ -1018,7 +1018,7 @@ function renderForCol(col){
   const map={bulletins:renderBulletin,events:()=>{renderCalendar();renderBulletin();},
     todos:()=>{renderTodo();renderBulletin();renderCalendar();},ledger:renderLedger,
     shopping:renderShopping,memos:renderMemo,members:()=>{renderMembers();renderGrades();},
-    album:renderAlbum,accounts:()=>{renderSettings();renderMembers();},grades:renderGrades,
+    album:renderAlbum,accounts:()=>{renderSettings();renderMembers();fillLWho(document.getElementById('modal-ledger').classList.contains('open')?(document.getElementById('l-who').value||currentUser?.name||''):(currentUser?.name||''));},grades:renderGrades,
     garbage:()=>{renderGarbage();renderCalendar();},
     point_tasks:renderPoints,point_shop:renderPoints,point_logs:renderPoints};
   if(map[col])map[col]();
