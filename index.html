@@ -2,7 +2,10 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>我家的家</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
@@ -16,7 +19,9 @@
   --amber:#BA7517;--amber-light:#FAEEDA;
   --radius:10px;--radius-sm:6px;
 }
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+*{box-sizing:border-box}
+html{height:-webkit-fill-available}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;overflow-x:hidden;min-height:100vh;min-height:-webkit-fill-available}
 
 /* ── SETUP SCREEN ── */
 #setup-screen{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:none;align-items:center;justify-content:center}
@@ -56,8 +61,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .cfg-link{margin-top:14px;font-size:12px;color:var(--text3);cursor:pointer;text-decoration:underline}
 
 /* ── APP ── */
-#app{display:none;height:100vh;overflow:hidden}
-.layout{display:flex;height:100vh}
+#app{display:none;height:100vh;height:100dvh;overflow:hidden}
+.layout{display:flex;height:100vh;height:100dvh}
 .sidebar{width:210px;min-width:210px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh}
 .sidebar-header{padding:18px 16px 14px;border-bottom:1px solid var(--border)}
 .site-name{font-size:16px;font-weight:600;display:flex;align-items:center;gap:7px}
