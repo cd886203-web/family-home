@@ -1225,7 +1225,13 @@ function renderGarbage(){
     <i class="ti ti-user" style="font-size:20px;color:var(--text2)"></i>
     <select id="garbage-person" style="flex:1;min-width:80px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2)">
       <option value="">-- 選擇人員 --</option>
+      <optgroup label="個人">
       ${names.map(n=>`<option value="${esc(n)}"${n===person?' selected':''}>${esc(n)}</option>`).join('')}
+      </optgroup>
+      <optgroup label="群組">
+        <option value="兄弟一起"${'兄弟一起'===person?' selected':''}>兄弟一起</option>
+        <option value="爸爸媽媽"${'爸爸媽媽'===person?' selected':''}>爸爸媽媽</option>
+      </optgroup>
     </select>
     <button class="btn btn-primary" style="padding:4px 12px;font-size:13px" onclick="saveGarbagePerson()">指定</button>
     <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;white-space:nowrap">
