@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>我家的家</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#534AB7">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -167,6 +170,9 @@ textarea{resize:vertical;min-height:72px}
 .shop-chk-box{width:20px;height:20px;border:2px solid var(--border);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
 .shop-chk-box.done{background:var(--green);border-color:var(--green)}
 .del-btn{font-size:12px;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px}
+.nav-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;border-radius:9px;background:var(--red,#d33);color:#fff;font-size:11px;font-weight:700;text-align:center;margin-left:6px;vertical-align:middle}
+#mob-more-btn{position:relative}
+#mob-more-btn .nav-badge{position:absolute;top:4px;left:55%;margin:0}
 .emoji-opt{font-size:22px;cursor:pointer;padding:4px;border-radius:6px;border:2px solid transparent;transition:border-color .15s}
 .emoji-opt:hover{border-color:var(--accent)}.emoji-opt.selected{border-color:var(--accent);background:var(--accent-light)}
 .del-btn:hover{color:var(--red);background:var(--red-light)}
@@ -445,6 +451,8 @@ textarea{resize:vertical;min-height:72px}
             <button class="btn" id="view-list-btn"  onclick="setLedgerView('list',this)"><i class="ti ti-list"></i> 明細</button>
             <button class="btn" id="view-log-btn"   onclick="setLedgerView('log',this)"><i class="ti ti-history"></i> 紀錄</button>
             <button class="btn" id="view-range-btn" onclick="toggleLedgerRange()"><i class="ti ti-calendar"></i> 區間</button>
+            <button class="btn" onclick="exportLedgerCSV()"><i class="ti ti-download"></i> 匯出</button>
+            <button class="btn" onclick="openRecurring()"><i class="ti ti-repeat"></i> 固定收支</button>
           </div>
         </div>
         <!-- 日期區間列 -->
@@ -606,6 +614,7 @@ textarea{resize:vertical;min-height:72px}
     <div class="form-group"><label>日期</label><input type="date" id="e-date"></div>
     <div class="form-group"><label>顏色</label><select id="e-color"><option value="#534AB7">🟣 紫色</option><option value="#1D9E75">🟢 綠色</option><option value="#D85A30">🟠 橘紅</option><option value="#BA7517">🟡 琥珀</option><option value="#185FA5">🔵 藍色</option><option value="#C0392B">🔴 紅色</option><option value="#16A085">🩵 青綠</option><option value="#8E44AD">💜 桃紫</option><option value="#2C3E50">⚫ 深藍灰</option><option value="#D4537E">🩷 玫瑰</option><option value="#27AE60">💚 翠綠</option><option value="#E67E22">🧡 橙色</option></select></div>
   </div>
+  <div class="form-group"><label>重複</label><select id="e-repeat"><option value="">不重複</option><option value="weekly">每週</option><option value="monthly">每月</option><option value="yearly">每年（生日、紀念日）</option></select></div>
   <button class="btn btn-primary" style="width:100%" onclick="saveEvent()">儲存活動</button>
 </div></div>
 
@@ -702,6 +711,23 @@ textarea{resize:vertical;min-height:72px}
 <div class="modal-overlay" id="modal-day-view"><div class="modal">
   <div class="modal-title" id="modal-day-title">活動 <span class="modal-close" onclick="closeModal('modal-day-view')">×</span></div>
   <div id="modal-day-body"></div>
+</div></div>
+
+<!-- 固定收支 Modal -->
+<div class="modal-overlay" id="modal-recurring"><div class="modal">
+  <div class="modal-title">固定收支 <span class="modal-close" onclick="closeModal('modal-recurring')">×</span></div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:10px">每月到了設定的日期，會自動新增一筆帳目。</div>
+  <div id="recurring-list" style="margin-bottom:14px"></div>
+  <div class="form-row">
+    <div class="form-group"><label>類型</label><select id="r-type"><option value="out">支出</option><option value="in">收入</option></select></div>
+    <div class="form-group"><label>分類</label><select id="r-cat"><option>飲食</option><option>交通</option><option>教育</option><option>水電費</option><option>醫療</option><option>娛樂</option><option>收入</option><option>其他</option></select></div>
+  </div>
+  <div class="form-group"><label>項目名稱</label><input id="r-name" placeholder="例：房租"></div>
+  <div class="form-row">
+    <div class="form-group"><label>金額</label><input type="number" id="r-amount" min="0"></div>
+    <div class="form-group"><label>每月幾號</label><input type="number" id="r-day" min="1" max="28" value="1"></div>
+  </div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveRecurring()">新增固定項目</button>
 </div></div>
 
 <!-- 新增任務 Modal -->
@@ -817,7 +843,7 @@ let ledgerFilter = 'all';
 const D = {
   bulletins:[], events:[], todos:[], ledger:[], ledger_logs:[],
   shopping:[], memos:[], members:[], album:[],
-  accounts:[], grades:[], garbage:[], point_tasks:[], point_shop:[], point_logs:[], config:{ sitename:'我家的家' }
+  accounts:[], grades:[], garbage:[], point_tasks:[], point_shop:[], point_logs:[], ledger_recurring:[], config:{ sitename:'我家的家' }
 };
 
 const BUILT_IN_CFG = {
@@ -1014,7 +1040,7 @@ function syncDot(state){ const d=document.getElementById('sync-dot'); d.classNam
 
 function startListeners(){
   syncDot('syncing');
-  const cols=['bulletins','events','todos','ledger','ledger_logs','shopping','memos','members','album','accounts','grades','garbage','point_tasks','point_shop','point_logs'];
+  const cols=['bulletins','events','todos','ledger','ledger_logs','shopping','memos','members','album','accounts','grades','garbage','point_tasks','point_shop','point_logs','ledger_recurring'];
   let loaded=0;
   cols.forEach(col=>{
     const unsub=db.collection(col).onSnapshot(snap=>{
@@ -1038,7 +1064,8 @@ function renderForCol(col){
     shopping:renderShopping,memos:renderMemo,members:()=>{renderMembers();renderGrades();},
     album:renderAlbum,accounts:()=>{renderSettings();renderMembers();fillLWho(currentUser?.name||'');},grades:renderGrades,
     garbage:()=>{renderGarbage();renderCalendar();},
-    point_tasks:renderPoints,point_shop:renderPoints,point_logs:renderPoints};
+    point_tasks:renderPoints,point_shop:renderPoints,point_logs:()=>{renderPoints();updatePendingBadge();},
+    ledger_recurring:()=>{renderRecurring();applyRecurring();}};
   if(map[col])map[col]();
 }
 
@@ -1179,7 +1206,7 @@ function renderCalendar(){
     const isT=ds===todayStr;
     const dow=(first+d-1)%7;
     const isSun=dow===0, isSat=dow===6;
-    const evts=D.events.filter(e=>e.date===ds).sort((a,b)=>a.name.localeCompare(b.name));
+    const evts=eventsOn(ds).sort((a,b)=>a.name.localeCompare(b.name));
     const todos=D.todos.filter(t=>t.date===ds&&!t.done);
     const gRec=D.garbage.find(g=>g.date===ds);
     const numCls='cal-day-num'+(isT?' today':isSun?' sun':isSat?' sat':'');
@@ -1200,13 +1227,13 @@ function renderCalendar(){
   for(let i=1;i<=trail;i++) html+=`<div class="cal-day other"><span class="cal-day-num">${i}</span></div>`;
   document.getElementById('cal-grid').innerHTML=html;
   // upcoming events list
-  const sorted=[...D.events].sort((a,b)=>a.date.localeCompare(b.date));
-  const upcoming=sorted.filter(e=>e.date>=todayStr);
+  const upcoming=D.events.map(e=>({...e,next:nextOccurrence(e,todayStr)}))
+    .filter(e=>e.next).sort((a,b)=>a.next.localeCompare(b.next));
   const listEl=document.getElementById('event-list');
   if(listEl) listEl.innerHTML=upcoming.length?`<div class="section-head" style="margin-top:12px"><div class="section-title">即將到來的活動</div></div>`+upcoming.map(e=>`
     <div class="event-item">
       <div class="event-dot" style="background:${e.color}"></div>
-      <div style="flex:1"><div style="font-size:13px">${esc(e.name)}</div><div style="font-size:11px;color:var(--text3)">${fmtDate(e.date)}</div></div>
+      <div style="flex:1"><div style="font-size:13px">${esc(e.name)}</div><div style="font-size:11px;color:var(--text3)">${fmtDate(e.next)}${e.repeat?` · <i class="ti ti-repeat"></i> ${REPEAT_LABEL[e.repeat]}`:''}</div></div>
       ${isAdmin()?`<span class="del-btn" onclick="del('events','${e._id}')"><i class="ti ti-trash"></i></span>`:''}
     </div>`).join(''):'';
 }
@@ -1256,7 +1283,7 @@ async function toggleGarbageDone(checked){
   await db.collection('garbage').doc(today).set({date:today,name,done:checked});
 }
 function openDayView(ds){
-  const evts=D.events.filter(e=>e.date===ds);
+  const evts=eventsOn(ds);
   const todos=D.todos.filter(t=>t.date===ds);
   if(!evts.length&&!todos.length)return;
   const [y,m,d]=ds.split('-');
@@ -1286,9 +1313,33 @@ async function saveEvent(){
   const date=document.getElementById('e-date').value;
   if(!name||!date)return;
   syncDot('syncing');
-  await db.collection('events').add({name,date,color:document.getElementById('e-color').value,createdAt:ts()});
-  document.getElementById('e-name').value='';closeModal('modal-calendar');syncDot('synced');
+  const repeat=document.getElementById('e-repeat').value;
+  await db.collection('events').add({name,date,repeat,color:document.getElementById('e-color').value,createdAt:ts()});
+  document.getElementById('e-name').value='';document.getElementById('e-repeat').value='';closeModal('modal-calendar');syncDot('synced');
 }
+// 重複活動：判斷某活動是否發生在 ds 這天
+function eventOccurs(e,ds){
+  if(e.date===ds) return true;
+  if(!e.repeat||ds<e.date) return false;
+  const a=new Date(e.date+'T00:00:00'), b=new Date(ds+'T00:00:00');
+  if(e.repeat==='weekly') return a.getDay()===b.getDay();
+  if(e.repeat==='monthly') return a.getDate()===b.getDate();
+  if(e.repeat==='yearly') return a.getDate()===b.getDate()&&a.getMonth()===b.getMonth();
+  return false;
+}
+function eventsOn(ds){ return D.events.filter(e=>eventOccurs(e,ds)); }
+// 下一次發生日期（從 fromDs 起算，最多找一年）
+function nextOccurrence(e,fromDs){
+  if(!e.repeat) return e.date>=fromDs?e.date:null;
+  const d=new Date((e.date>fromDs?e.date:fromDs)+'T00:00:00');
+  for(let i=0;i<370;i++){
+    const ds=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    if(eventOccurs(e,ds)) return ds;
+    d.setDate(d.getDate()+1);
+  }
+  return null;
+}
+const REPEAT_LABEL={weekly:'每週',monthly:'每月',yearly:'每年'};
 
 // ══════════════════════════════════════════
 //  TODO
@@ -1351,6 +1402,73 @@ function setLedgerView(mode,el){
 const CAT_COLORS=['#534AB7','#1D9E75','#D85A30','#BA7517','#185FA5','#639922','#D4537E','#888780'];
 const ICON_MAP={飲食:'ti-shopping-bag',交通:'ti-bus',教育:'ti-school',水電費:'ti-bolt',收入:'ti-cash',醫療:'ti-stethoscope',娛樂:'ti-device-gamepad',購物:'ti-shirt',其他:'ti-dots'};
 
+// ── 固定收支 ──
+function openRecurring(){ renderRecurring(); openModal('modal-recurring'); }
+function renderRecurring(){
+  const el=document.getElementById('recurring-list'); if(!el) return;
+  el.innerHTML=D.ledger_recurring.length?D.ledger_recurring.map(r=>`
+    <div class="event-item">
+      <div style="flex:1"><div style="font-size:13px">${esc(r.name)} <span style="font-size:11px;color:var(--text3)">${esc(r.cat)}</span></div>
+      <div style="font-size:11px;color:var(--text3)">每月 ${r.day} 號 · 上次入帳 ${r.lastMonth||'尚未'}</div></div>
+      <div style="font-weight:700;color:${r.type==='in'?'var(--green)':'var(--red)'}">${r.type==='in'?'+':'-'}$${Number(r.amount).toLocaleString()}</div>
+      <span class="del-btn" onclick="if(confirm('刪除此固定項目？已入帳的紀錄不受影響'))del('ledger_recurring','${r._id}')"><i class="ti ti-trash"></i></span>
+    </div>`).join(''):'<div style="font-size:13px;color:var(--text3)">尚無固定項目</div>';
+}
+async function saveRecurring(){
+  const name=document.getElementById('r-name').value.trim();
+  const amount=parseFloat(document.getElementById('r-amount').value);
+  const day=Math.min(28,Math.max(1,parseInt(document.getElementById('r-day').value)||1));
+  if(!name||isNaN(amount)||amount<=0){alert('請填寫名稱與金額');return;}
+  await db.collection('ledger_recurring').add({name,amount,day,
+    type:document.getElementById('r-type').value,cat:document.getElementById('r-cat').value,
+    who:currentUser?.name||'',lastMonth:'',createdAt:ts()});
+  document.getElementById('r-name').value='';document.getElementById('r-amount').value='';
+  applyRecurring();
+}
+let recurringRunning=false;
+async function applyRecurring(){
+  if(recurringRunning||!db) return;
+  recurringRunning=true;
+  try{
+    const now=new Date(), ym=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+    for(const r of D.ledger_recurring){
+      if(r.lastMonth===ym||now.getDate()<r.day) continue;
+      const ref=db.collection('ledger_recurring').doc(r._id);
+      // 交易：避免多台裝置同時重複入帳
+      await db.runTransaction(async tx=>{
+        const snap=await tx.get(ref);
+        if(!snap.exists||snap.data().lastMonth===ym) return;
+        tx.update(ref,{lastMonth:ym});
+        tx.set(db.collection('ledger').doc(),{type:r.type,cat:r.cat,name:r.name+'（固定）',amount:r.amount,
+          date:`${ym}-${pad(r.day)}`,who:r.who||'',createdAt:ts()});
+      });
+    }
+  }catch(e){console.error('固定收支',e);}
+  recurringRunning=false;
+}
+function ledgerScope(){
+  const isRange=ledgerRangeMode&&ledgerRangeFrom&&ledgerRangeTo;
+  const rows=D.ledger.filter(x=>{
+    if(isRange) return x.date>=ledgerRangeFrom&&x.date<=ledgerRangeTo;
+    const d=new Date(x.date+'T00:00:00');
+    return d.getMonth()+1===ledgerMonth&&d.getFullYear()===ledgerYear;
+  });
+  const label=isRange?`${ledgerRangeFrom}_${ledgerRangeTo}`:`${ledgerYear}-${pad(ledgerMonth)}`;
+  return {rows,label};
+}
+function exportLedgerCSV(){
+  const {rows,label}=ledgerScope();
+  if(!rows.length){alert('此期間沒有帳目可匯出');return;}
+  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const lines=[['日期','類型','分類','項目','金額','記帳人'].join(',')]
+    .concat([...rows].sort((a,b)=>a.date.localeCompare(b.date))
+      .map(x=>[x.date,x.type==='in'?'收入':'支出',x.cat,x.name,x.amount,x.who].map(q).join(',')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=`帳本_${label}.csv`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
 function toggleLedgerRange(){
   ledgerRangeMode=!ledgerRangeMode;
   const row=document.getElementById('ledger-range-row');
@@ -1604,7 +1722,7 @@ function renderShopping(){
     html+=`<div class="shop-grid">${pending.map(cardHtml).join('')}</div>`;
   }
   if(done.length){
-    html+=`<div class="section-head" style="margin-top:16px"><div class="section-title" style="color:var(--text3)">已購買（${done.length}）</div></div>`;
+    html+=`<div class="section-head" style="margin-top:16px"><div class="section-title" style="color:var(--text3)">已購買（${done.length}）</div><button class="btn" style="font-size:12px;padding:4px 10px;color:var(--red)" onclick="clearBoughtShopping()"><i class="ti ti-trash"></i> 清除已購買</button></div>`;
     html+=`<div class="shop-grid">${done.map(cardHtml).join('')}</div>`;
   }
   document.getElementById('shopping-list').innerHTML=html;
@@ -1618,6 +1736,16 @@ async function saveShopping(){
   document.getElementById('s-name').value='';document.getElementById('s-qty').value='';
   document.getElementById('s-file').value='';document.getElementById('s-preview').innerHTML='';
   closeModal('modal-shopping');syncDot('synced');
+}
+async function clearBoughtShopping(){
+  const done=D.shopping.filter(s=>s.done);
+  if(!done.length) return;
+  if(!confirm(`確定刪除 ${done.length} 項已購買的品項？刪除後無法復原。`)) return;
+  syncDot('syncing');
+  const batch=db.batch();
+  done.forEach(s=>batch.delete(db.collection('shopping').doc(s._id)));
+  await batch.commit();
+  syncDot('synced');
 }
 async function toggleShop(id,done){ syncDot('syncing'); await db.collection('shopping').doc(id).update({done}); syncDot('synced'); }
 
@@ -2070,6 +2198,22 @@ async function saveManualPts(){
   alert(`已${typeVal==='1'?'增加':'扣除'} ${amount} 積分`);
 }
 
+// ── 待審核提醒 ──
+function updatePendingBadge(){
+  const n=isAdmin()?D.point_logs.filter(l=>l.status==='pending').length:0;
+  const targets=[
+    document.querySelector('.nav-item[data-panel="points"]'),
+    document.querySelector('.mob-more-item[data-panel="points"]'),
+    document.getElementById('mob-more-btn'),
+    document.getElementById('pt-tab-logs')
+  ];
+  targets.forEach(t=>{
+    if(!t) return;
+    t.querySelector('.nav-badge')?.remove();
+    if(n>0) t.insertAdjacentHTML('beforeend',`<span class="nav-badge">${n}</span>`);
+  });
+}
+
 // ── 審核 ──
 async function ptApprove(logId){
   const log=D.point_logs.find(l=>l._id===logId);
@@ -2307,7 +2451,10 @@ async function del(col,id,cb){
 // ══════════════════════════════════════════
 function isAdmin(){ return currentUser&&currentUser.role==='admin'; }
 function ts(){ return firebase.firestore.FieldValue.serverTimestamp(); }
-function nowDate(){ return new Date().toISOString().slice(0,10); }
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW',e)));
+}
+function nowDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function monthDate(d){ const n=new Date();n.setDate(d);return n.toISOString().slice(0,10); }
 function fmtDate(s){ if(!s)return ''; const d=new Date(s+'T00:00:00'); return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`; }
 function pad(n){ return String(n).padStart(2,'0'); }
