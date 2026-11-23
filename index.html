@@ -2,21 +2,21 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>我家的家</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#534AB7">
+<meta name="theme-color" content="#185FA5">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#f5f5f0;--surface:#ffffff;--sidebar:#fafaf7;--border:#e0dfd8;
-  --text:#1a1a18;--text2:#6b6b66;--text3:#a8a8a2;
-  --accent:#534AB7;--accent-light:#EEEDFE;--accent-dark:#3C3489;
+  --bg:#f7f6f2;--bg2:#f1efe8;--surface:#ffffff;--sidebar:#ffffff;--border:#e0dfd8;
+  --text:#2c2c2a;--text2:#5f5e5a;--text3:#8a8984;
+  --accent:#185FA5;--accent-light:#E6F1FB;--accent-dark:#0C447C;
   --green:#0F6E56;--green-light:#E1F5EE;
   --red:#993C1D;--red-light:#FAECE7;
   --amber:#BA7517;--amber-light:#FAEEDA;
@@ -73,7 +73,19 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .nav{flex:1;padding:8px 0;overflow-y:auto}
 .nav-section{font-size:10px;color:var(--text3);padding:10px 16px 4px;letter-spacing:.06em;text-transform:uppercase}
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-right:2px solid transparent;transition:all .12s}
-.nav-item:hover{background:rgba(83,74,183,.06);color:var(--text)}
+[data-panel="bulletin"]{--accent:#185FA5;--accent-light:#E6F1FB;--accent-dark:#0C447C}
+[data-panel="calendar"]{--accent:#0F6E56;--accent-light:#E1F5EE;--accent-dark:#085041}
+[data-panel="todo"]{--accent:#C44D25;--accent-light:#FAECE7;--accent-dark:#712B13}
+[data-panel="album"]{--accent:#B8406A;--accent-light:#FBEAF0;--accent-dark:#72243E}
+[data-panel="members"]{--accent:#534AB7;--accent-light:#EEEDFE;--accent-dark:#3C3489}
+[data-panel="memo"]{--accent:#7A6238;--accent-light:#F5EFE1;--accent-dark:#4F3F22}
+[data-panel="ledger"]{--accent:#3B6D11;--accent-light:#EAF3DE;--accent-dark:#27500A}
+[data-panel="shopping"]{--accent:#A32D2D;--accent-light:#FCEBEB;--accent-dark:#791F1F}
+[data-panel="grades"]{--accent:#0B7285;--accent-light:#E3F4F7;--accent-dark:#075261}
+[data-panel="points"]{--accent:#A8620A;--accent-light:#FAEEDA;--accent-dark:#633806}
+[data-panel="settings"]{--accent:#5F5E5A;--accent-light:#F1EFE8;--accent-dark:#444441}
+.nav-item i{color:var(--accent)}
+.nav-item:hover{background:var(--accent-light);color:var(--text)}
 .nav-item.active{background:var(--accent-light);color:var(--accent-dark);font-weight:600;border-right-color:var(--accent)}
 .nav-item i{font-size:16px}
 .sidebar-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
@@ -83,7 +95,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .logout-btn:hover{color:var(--red);border-color:var(--red)}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .topbar{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface)}
-.page-title{font-size:16px;font-weight:600}
+.topbar{border-bottom:2px solid var(--accent)}
+.page-title{font-size:16px;font-weight:600;color:var(--accent-dark)}
 .topbar-actions{display:flex;gap:8px;align-items:center}
 .sync-dot{width:8px;height:8px;border-radius:50%;background:#ccc;transition:background .3s}
 .sync-dot.synced{background:var(--green)}
@@ -256,7 +269,8 @@ textarea{resize:vertical;min-height:72px}
 
   #mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:200;height:60px}
   .mob-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;color:var(--text3);border:none;background:transparent;padding:4px 0}
-  .mob-nav-item i{font-size:22px}
+  input,select,textarea{font-size:16px!important}
+  .mob-nav-item i{font-size:22px;color:var(--accent)}
   .mob-nav-item span{font-size:9px}
   .mob-nav-item.active{color:var(--accent)}
 
@@ -1062,7 +1076,7 @@ function renderForCol(col){
   const map={bulletins:renderBulletin,events:()=>{renderCalendar();renderBulletin();},
     todos:()=>{renderTodo();renderBulletin();renderCalendar();},ledger:renderLedger,
     shopping:renderShopping,memos:renderMemo,members:()=>{renderMembers();renderGrades();},
-    album:renderAlbum,accounts:()=>{renderSettings();renderMembers();fillLWho(currentUser?.name||'');},grades:renderGrades,
+    album:renderAlbum,accounts:()=>{renderSettings();renderMembers();renderGarbage();renderPoints();fillLWho(document.getElementById('l-who').value||currentUser?.name||'');},grades:renderGrades,
     garbage:()=>{renderGarbage();renderCalendar();},
     point_tasks:renderPoints,point_shop:renderPoints,point_logs:()=>{renderPoints();updatePendingBadge();},
     ledger_recurring:()=>{renderRecurring();applyRecurring();}};
@@ -1074,6 +1088,7 @@ function renderForCol(col){
 // ══════════════════════════════════════════
 const TITLES={bulletin:'公告欄',calendar:'行事曆',todo:'待辦清單',album:'相簿',members:'家庭成員',memo:'備忘錄',ledger:'家庭帳本',shopping:'購物清單',grades:'成績記錄',points:'積分系統',settings:'設定'};
 let currentPanel='bulletin';
+document.documentElement.dataset.panel='bulletin';
 function show(id,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1082,6 +1097,7 @@ function show(id,el){
   if(target)target.classList.add('active');
   document.getElementById('page-title').textContent=TITLES[id];
   currentPanel=id;
+  document.documentElement.dataset.panel=id;
   if(id==='points') renderPoints();
   if(id==='settings') renderSettings();
 }
@@ -1117,6 +1133,13 @@ function closeMobMenu(){
   document.getElementById('mob-overlay').classList.remove('open');
 }
 function handleAdd(){
+  if(currentPanel==='points'){
+    if(!isAdmin()){alert('任務與獎品由家長設定');return;}
+    if(ptTab==='tasks') openAddTask();
+    else if(ptTab==='shop') openAddShop();
+    else openManualPts('','');
+    return;
+  }
   const map={bulletin:'modal-bulletin',calendar:'modal-calendar',todo:'modal-todo',
     memo:'modal-memo',ledger:'modal-ledger',shopping:'modal-shopping',
     album:'modal-album',members:'modal-adduser',grades:'modal-grades'};
@@ -1143,7 +1166,7 @@ function renderBulletin(){
   document.getElementById('stat-events').textContent=monthEvents.length;
   document.getElementById('stat-todos').textContent=D.todos.filter(t=>!t.done).length;
   const tagClass={重要:'tag-purple',生活:'tag-teal',提醒:'tag-amber',其他:'tag-red'};
-  const sorted=[...D.bulletins].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const sorted=[...D.bulletins].sort((a,b)=>tsMs(b)-tsMs(a));
   document.getElementById('bulletin-list').innerHTML=sorted.length?sorted.map(b=>`
     <div class="card">
       <span class="tag ${tagClass[b.tag]||'tag-amber'}">${esc(b.tag)}</span>
@@ -1345,7 +1368,7 @@ const REPEAT_LABEL={weekly:'每週',monthly:'每月',yearly:'每年'};
 //  TODO
 // ══════════════════════════════════════════
 function renderTodo(){
-  const sorted=[...D.todos].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const sorted=[...D.todos].sort((a,b)=>tsMs(a)-tsMs(b));
   document.getElementById('todo-list').innerHTML=sorted.length?sorted.map(t=>`
     <div class="todo-item" style="flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
@@ -1567,7 +1590,7 @@ function renderLedger(){
     const filterEl=document.getElementById('ledger-cat-filter');
     if(filterEl){
       filterEl.innerHTML=`<button class="gr-tab${ledgerCatFilter==='all'?' active':''}" onclick="filterLedgerCat('all')">全部</button>`
-        +entries.map(([cat],i)=>`<button class="gr-tab${ledgerCatFilter===cat?' active':''}" onclick="filterLedgerCat('${cat}')" style="${ledgerCatFilter===cat?`background:${colors[i]};border-color:${colors[i]};color:#fff`:''}"> ${esc(cat)}</button>`).join('');
+        +entries.map(([cat],i)=>`<button class="gr-tab${ledgerCatFilter===cat?' active':''}" onclick="filterLedgerCat(${jsArg(cat)})" style="${ledgerCatFilter===cat?`background:${colors[i]};border-color:${colors[i]};color:#fff`:''}"> ${esc(cat)}</button>`).join('');
     }
 
     // ── 明細列表（圖表模式） ──
@@ -1578,7 +1601,7 @@ function renderLedger(){
 
   } else {
     // ── 純明細模式 ──
-    const filtered=D.ledger.filter(x=>ledgerFilter==='all'||x.type===ledgerFilter);
+    const filtered=monthly.filter(x=>ledgerFilter==='all'||x.type===ledgerFilter);
     const sorted=[...filtered].sort((a,b)=>b.date.localeCompare(a.date));
     const listOnly=document.getElementById('ledger-list-only');
     if(listOnly) listOnly.innerHTML=_renderLedgerRows(sorted, true);
@@ -1602,7 +1625,7 @@ function _renderLedgerRows(rows, showType=false){
       </div>
       <div class="${x.type==='in'?'amount-in':'amount-out'}" style="white-space:nowrap">${x.type==='in'?'+':'-'}$${x.amount.toLocaleString()}</div>
       <span class="del-btn" style="color:var(--accent)" onclick="openLedgerEdit('${x._id}')"><i class="ti ti-pencil"></i></span>
-      <span class="del-btn" onclick="delLedger('${x._id}','${esc(x.name)}')"><i class="ti ti-trash"></i></span>
+      <span class="del-btn" onclick="delLedger('${x._id}',${jsArg(x.name)})"><i class="ti ti-trash"></i></span>
     </div>`;
   }).join('');
 }
@@ -1690,7 +1713,7 @@ function renderLedgerLogs(){
 //  SHOPPING
 // ══════════════════════════════════════════
 function renderShopping(){
-  const sorted=[...D.shopping].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const sorted=[...D.shopping].sort((a,b)=>tsMs(a)-tsMs(b));
   if(!sorted.length){
     document.getElementById('shopping-list').innerHTML='<div class="empty"><i class="ti ti-shopping-cart"></i>購物清單是空的</div>';
     return;
@@ -1753,7 +1776,7 @@ async function toggleShop(id,done){ syncDot('syncing'); await db.collection('sho
 //  MEMO
 // ══════════════════════════════════════════
 function renderMemo(){
-  const sorted=[...D.memos].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const sorted=[...D.memos].sort((a,b)=>tsMs(b)-tsMs(a));
   document.getElementById('memo-list').innerHTML=sorted.length?sorted.map(m=>`
     <div class="memo-card">
       <div class="memo-text">${esc(m.text)}</div>
@@ -1899,7 +1922,7 @@ function renderSettings(){
       <div class="avatar" style="width:34px;height:34px;min-width:34px;font-size:13px;background:var(--accent-light);color:var(--accent-dark)">${a.name.charAt(0)}</div>
       <div style="flex:1"><div style="font-size:13px;font-weight:500">${esc(a.name)} <span style="font-size:11px;color:var(--text3)">(${esc(a.username)})</span></div><div style="font-size:11px;color:var(--text2)">${a.role==='admin'?'管理員':'一般成員'}</div></div>
       <span class="badge ${a.role==='admin'?'badge-admin':'badge-member'}">${a.role==='admin'?'管理員':'成員'}</span>
-      ${isAdmin()&&a.username!==currentUser.username?`<span class="del-btn" onclick="delAccount('${a._id}','${a.username}')"><i class="ti ti-trash"></i></span>`:''}
+      ${isAdmin()&&a.username!==currentUser.username?`<span class="del-btn" onclick="delAccount('${a._id}',${jsArg(a.username)})"><i class="ti ti-trash"></i></span>`:''}
     </div>`).join('');
 }
 async function saveCfg(){
@@ -1946,7 +1969,7 @@ function renderPoints(){
     const bal=ptBalance(c.username);
     const isMe=currentUser&&currentUser.username===c.username;
     return `<div class="card" style="flex:1;min-width:130px;text-align:center;padding:14px 10px;position:relative">
-      ${isAdmin()?`<span class="del-btn" style="position:absolute;top:6px;right:6px;color:var(--accent)" onclick="openManualPts('${esc(c.username)}','${esc(c.name)}')"><i class="ti ti-plus"></i></span>`:''}
+      ${isAdmin()?`<span class="del-btn" style="position:absolute;top:6px;right:6px;color:var(--accent)" onclick="openManualPts(${jsArg(c.username)},${jsArg(c.name)})"><i class="ti ti-plus"></i></span>`:''}
       <div style="font-size:28px;font-weight:700;color:var(--accent)">${bal}</div>
       <div style="font-size:12px;color:var(--text2);margin-top:2px">${esc(c.name)}${isMe?' <span style=\'font-size:10px;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px\'>我</span>':''}</div>
       <div style="font-size:10px;color:var(--text3)">積分</div>
@@ -1976,10 +1999,10 @@ function renderPtTasks(){
       <div style="font-size:14px;font-weight:600;margin-bottom:4px">${esc(t.title)}</div>
       <div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:10px">+${t.points} 積分</div>
       ${!t.active?'<div style="font-size:11px;color:var(--text3);margin-bottom:6px">（已停用）</div>':''}
-      ${isAdmin()?`<select onchange="ptTaskApproveFor(this,'${t._id}','${esc(t.title)}',${t.points})" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);font-size:12px">
+      ${isAdmin()?`<select onchange="ptTaskApproveFor(this,'${t._id}',${jsArg(t.title)},${t.points})" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);font-size:12px">
         <option value="">核發給...</option>
         ${D.accounts.filter(a=>a.role!=='admin').map(a=>`<option value="${esc(a.username)}">${esc(a.name)}</option>`).join('')}
-      </select>`:`<button class="btn btn-primary" style="width:100%;padding:5px" onclick="ptRequestTask('${t._id}','${esc(t.title)}',${t.points})">完成任務</button>`}
+      </select>`:`<button class="btn btn-primary" style="width:100%;padding:5px" onclick="ptRequestTask('${t._id}',${jsArg(t.title)},${t.points})">完成任務</button>`}
     </div>`).join('');
 }
 
@@ -1998,7 +2021,7 @@ function renderPtShop(){
       <div style="font-size:14px;font-weight:600;margin-bottom:4px">${esc(item.name)}</div>
       <div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:4px">${item.points} 積分</div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:10px">${stockTxt}</div>
-      ${!isAdmin()?soldOut?`<button class="btn" style="width:100%;padding:5px" disabled>已售完</button>`:`<button class="btn btn-primary" style="width:100%;padding:5px" onclick="ptRedeem('${item._id}','${esc(item.name)}',${item.points})">兌換</button>`:''}
+      ${!isAdmin()?soldOut?`<button class="btn" style="width:100%;padding:5px" disabled>已售完</button>`:`<button class="btn btn-primary" style="width:100%;padding:5px" onclick="ptRedeem('${item._id}',${jsArg(item.name)},${item.points})">兌換</button>`:''}
     </div>`;
   }).join('');
 }
@@ -2215,19 +2238,35 @@ function updatePendingBadge(){
 }
 
 // ── 審核 ──
+const ptApproving=new Set();
 async function ptApprove(logId){
+  if(ptApproving.has(logId)) return;
   const log=D.point_logs.find(l=>l._id===logId);
-  if(!log) return;
+  if(!log||log.status!=='pending') return;
   if(log.type==='redeem'){
     const bal=ptBalance(log.childUsername);
     if(bal<log.amount){alert(`積分不足，無法核准（目前 ${bal} 分，需要 ${log.amount} 分）`);return;}
-    const item=log.shopId?D.point_shop.find(s=>s._id===log.shopId):null;
-    if(item&&item.stock>0){
-      if(item.stock===1&&!confirm('這是最後一個庫存，核准後商品將顯示「已售完」，確定核准？')) return;
-      await db.collection('point_shop').doc(item._id).update({stock:item.stock-1===0?-1:item.stock-1});
-    }else if(item&&item.stock<0){alert('此商品已售完');return;}
   }
-  await db.collection('point_logs').doc(logId).update({status:'approved',approvedBy:currentUser.name});
+  ptApproving.add(logId);
+  try{
+    // 交易：連點或兩位家長同時核准，也只會扣一次庫存
+    await db.runTransaction(async tx=>{
+      const logRef=db.collection('point_logs').doc(logId);
+      const fresh=await tx.get(logRef);
+      if(!fresh.exists||fresh.data().status!=='pending') return;
+      if(log.type==='redeem'&&log.shopId){
+        const itemRef=db.collection('point_shop').doc(log.shopId);
+        const itemSnap=await tx.get(itemRef);
+        if(itemSnap.exists){
+          const stock=itemSnap.data().stock||0;
+          if(stock<0) throw new Error('此商品已售完');
+          if(stock>0) tx.update(itemRef,{stock:stock===1?-1:stock-1});
+        }
+      }
+      tx.update(logRef,{status:'approved',approvedBy:currentUser.name});
+    });
+  }catch(e){alert('無法核准：'+e.message);}
+  ptApproving.delete(logId);
 }
 async function ptReject(logId){
   await db.collection('point_logs').doc(logId).update({status:'rejected'});
@@ -2458,7 +2497,11 @@ function nowDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.ge
 function monthDate(d){ const n=new Date();n.setDate(d);return n.toISOString().slice(0,10); }
 function fmtDate(s){ if(!s)return ''; const d=new Date(s+'T00:00:00'); return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`; }
 function pad(n){ return String(n).padStart(2,'0'); }
-function esc(s){ if(!s)return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s){ if(s===null||s===undefined||s==='')return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// 放進 onclick="..." 的字串參數（含引號也安全）
+function jsArg(s){ return esc(JSON.stringify(String(s??''))); }
+// Firestore 時間轉毫秒；剛寫入尚未回傳時視為現在
+function tsMs(x){ const c=x&&x.createdAt; if(c&&c.toMillis)return c.toMillis(); if(typeof c==='number')return c; if(c&&c.seconds)return c.seconds*1000; return Date.now(); }
 
 // ══════════════════════════════════════════
 //  STARTUP
