@@ -998,7 +998,7 @@ async function doLogin(){
     try{
       cred=await auth.signInWithEmailAndPassword(authEmail(u),p);
     }catch(e){
-      if(!['auth/invalid-credential','auth/invalid-login-credentials','auth/user-not-found','auth/wrong-password'].includes(e.code)) throw e;
+      if(!['auth/invalid-credential','auth/invalid-login-credentials','auth/user-not-found','auth/wrong-password','auth/configuration-not-found','auth/operation-not-allowed'].includes(e.code)) throw e;
     }
     if(cred){
       let user=await loadProfile(cred.user);
@@ -1038,7 +1038,7 @@ async function doLogin(){
     }catch(e){
       if(e.code==='auth/email-already-in-use'){errEl.textContent='帳號或密碼錯誤';return;}
       // 登入服務尚未啟用或舊密碼太短：先讓使用者進入，不鎖在門外
-      if(e.code==='auth/operation-not-allowed'||e.code==='auth/weak-password'||e.code==='auth/admin-restricted-operation'){
+      if(e.code==='auth/configuration-not-found'||e.code==='auth/operation-not-allowed'||e.code==='auth/weak-password'||e.code==='auth/admin-restricted-operation'){
         console.warn('帳號暫未升級',e.code);finish(legacyUser);return;
       }
       throw e;
