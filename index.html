@@ -841,6 +841,7 @@ textarea{resize:vertical;min-height:72px}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
@@ -908,29 +909,49 @@ async function hashPw(pw){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+let auth=null;
+// 帳號可能含中文，轉成十六進位組成 Firebase Auth 用的內部信箱
+function authEmail(username){
+  const hex=Array.from(new TextEncoder().encode(username.toLowerCase())).map(b=>b.toString(16).padStart(2,'0')).join('');
+  return `u${hex}@family-home.local`;
+}
+async function loadProfile(fbUser){
+  const prof=await db.collection('users').doc(fbUser.uid).get();
+  if(!prof.exists) return null;
+  const p=prof.data();
+  const acc=await db.collection('accounts').doc(p.accountId).get();
+  if(!acc.exists) return null;
+  const user={...acc.data(),docId:acc.id,uid:fbUser.uid,role:p.role};
+  delete user.password;
+  return user;
+}
+function showLoginScreen(){
+  document.getElementById('login-screen').classList.add('show');
+  const saved=JSON.parse(lsGet('fh_saved')||'null');
+  document.getElementById('login-user').value=saved?.u||'';
+  // 舊版存過的密碼只帶入一次供升級，登入成功後即清除
+  document.getElementById('login-pass').value=saved?.p||'';
+  document.getElementById('login-remember').checked=!!saved;
+}
+
 async function initFirebase(cfg){
   setLoading('連線 Firebase…');
   try{
     if(firebase.apps.length) firebase.apps[0].delete();
     firebase.initializeApp(cfg);
     db = firebase.firestore();
-    // test connection
-    setLoading('讀取資料…');
-    await db.collection('accounts').limit(1).get();
-    await seedIfEmpty();
+    auth = firebase.auth();
+    setLoading('確認登入狀態…');
+    const fbUser=await new Promise(res=>{const off=auth.onAuthStateChanged(u=>{off();res(u);});});
+    let user=null;
+    if(fbUser) user=await loadProfile(fbUser).catch(e=>{console.error(e);return null;});
     document.getElementById('loading').style.display='none';
-    // 嘗試自動登入（使用本機快取）
-    const session=JSON.parse(lsGet('fh_session')||'null');
-    if(session&&session.username){
-      applyLogin(session);
+    lsRemove('fh_session'); // 舊版本機登入資料不再使用
+    if(user){
+      applyLogin(user);
     } else {
-      document.getElementById('login-screen').classList.add('show');
-      const saved=JSON.parse(lsGet('fh_saved')||'null');
-      if(saved){
-        document.getElementById('login-user').value=saved.u||'';
-        document.getElementById('login-pass').value=saved.p||'';
-        document.getElementById('login-remember').checked=true;
-      }
+      if(fbUser) await auth.signOut();
+      showLoginScreen();
     }
     // load sitename for login screen
     const cfgDoc = await db.collection('config').doc('site').get();
@@ -940,50 +961,6 @@ async function initFirebase(cfg){
     alert('Firebase 連線失敗：'+err.message+'\n請確認設定是否正確，或 Firestore 是否已啟用。');
     showSetup();
   }
-}
-
-async function seedIfEmpty(){
-  const snap = await db.collection('accounts').get();
-  if(!snap.empty) return;
-  const batch = db.batch();
-  const today = nowDate();
-  // accounts
-  [{username:'admin',password:'admin1234',name:'管理員',role:'admin'},
-   {username:'dad',  password:'dad1234',  name:'爸爸',  role:'member'},
-   {username:'mom',  password:'mom1234',  name:'媽媽',  role:'member'}]
-  .forEach(a=>batch.set(db.collection('accounts').doc(a.username),a));
-  // config
-  batch.set(db.collection('config').doc('site'),{sitename:'我家的家'});
-  // bulletins
-  batch.set(db.collection('bulletins').doc(),{title:'歡迎使用我家的家',tag:'重要',body:'這是家庭專屬網頁，請各成員登入後開始使用。',author:'管理員',date:today,createdAt:ts()});
-  // members
-  [{name:'陳大明',role:'爸爸',bg:'#EEEDFE',fg:'#3C3489'},
-   {name:'林小芬',role:'媽媽',bg:'#E1F5EE',fg:'#085041'},
-   {name:'陳小明',role:'兒子',bg:'#FAEEDA',fg:'#633806'},
-   {name:'陳小玲',role:'女兒',bg:'#FAECE7',fg:'#712B13'}]
-  .forEach(m=>batch.set(db.collection('members').doc(),m));
-  // events
-  [{name:'爸媽結婚紀念日',date:monthDate(26),color:'#1D9E75'},
-   {name:'小明月考',date:monthDate(29),color:'#534AB7'}]
-  .forEach(e=>batch.set(db.collection('events').doc(),{...e,createdAt:ts()}));
-  // todos
-  [{text:'預訂宜蘭民宿',who:'爸爸',date:'',done:false},
-   {text:'買洗碗精、衛生紙',who:'媽媽',date:'',done:false}]
-  .forEach(t=>batch.set(db.collection('todos').doc(),{...t,createdAt:ts()}));
-  // ledger
-  const lm=new Date();const ym=`${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,'0')}`;
-  [{type:'in',cat:'收入',name:'爸爸薪資',amount:55000,date:ym+'-20',who:'爸爸'},
-   {type:'in',cat:'收入',name:'媽媽薪資',amount:30000,date:ym+'-10',who:'媽媽'},
-   {type:'out',cat:'飲食',name:'超市採購',amount:2340,date:ym+'-24',who:'媽媽'},
-   {type:'out',cat:'教育',name:'小明補習費',amount:6000,date:ym+'-15',who:'媽媽'},
-   {type:'out',cat:'交通',name:'捷運月票',amount:1280,date:ym+'-18',who:'爸爸'},
-   {type:'out',cat:'水電費',name:'電費',amount:2340,date:ym+'-05',who:'爸爸'}]
-  .forEach(x=>batch.set(db.collection('ledger').doc(),{...x,createdAt:ts()}));
-  // memos
-  [{text:'網路費每月5號自動扣款，若扣款失敗記得手動補繳。',date:today},
-   {text:'房東電話：0933-111-222，維修電話：0955-333-444。',date:today}]
-  .forEach(m=>batch.set(db.collection('memos').doc(),{...m,createdAt:ts()}));
-  await batch.commit();
 }
 
 // ══════════════════════════════════════════
@@ -1005,32 +982,75 @@ function applyLogin(user){
 async function doLogin(){
   const u=document.getElementById('login-user').value.trim();
   const p=document.getElementById('login-pass').value;
-  document.getElementById('login-err').textContent='';
-  try{
-    // 先比對本機快取（已登入帳號），若符合直接登入不等網路
-    const h=await hashPw(p);
-    const cached=JSON.parse(lsGet('fh_session')||'null');
-    if(cached&&cached.username===u&&(cached.password===h||cached.password===p)){
-      if(document.getElementById('login-remember').checked)
-        lsSet('fh_saved',JSON.stringify({u,p}));
-      else lsRemove('fh_saved');
-      applyLogin(cached); return;
-    }
-    // 先嘗試雜湊密碼，若無則嘗試明文（舊帳號遷移）
-    let snap=await db.collection('accounts').where('username','==',u).where('password','==',h).get();
-    if(snap.empty){
-      snap=await db.collection('accounts').where('username','==',u).where('password','==',p).get();
-      if(snap.empty){document.getElementById('login-err').textContent='帳號或密碼錯誤';return;}
-      // 舊明文帳號 → 自動升級為雜湊
-      await db.collection('accounts').doc(snap.docs[0].id).update({password:h});
-    }
-    const user={...snap.docs[0].data(),password:h,docId:snap.docs[0].id};
-    lsSet('fh_session',JSON.stringify(user));
-    if(document.getElementById('login-remember').checked)
-      lsSet('fh_saved',JSON.stringify({u,p}));
-    else lsRemove('fh_saved');
+  const errEl=document.getElementById('login-err');
+  errEl.textContent='';
+  if(!u||!p){errEl.textContent='請輸入帳號與密碼';return;}
+  const remember=document.getElementById('login-remember').checked;
+  const finish=user=>{
+    // 只記住帳號，不再儲存密碼
+    if(remember) lsSet('fh_saved',JSON.stringify({u})); else lsRemove('fh_saved');
+    document.getElementById('login-pass').value='';
     applyLogin(user);
-  }catch(e){document.getElementById('login-err').textContent='登入失敗：'+e.message;}
+  };
+  try{
+    await auth.setPersistence(remember?firebase.auth.Auth.Persistence.LOCAL:firebase.auth.Auth.Persistence.SESSION);
+    let cred=null;
+    try{
+      cred=await auth.signInWithEmailAndPassword(authEmail(u),p);
+    }catch(e){
+      if(!['auth/invalid-credential','auth/invalid-login-credentials','auth/user-not-found','auth/wrong-password'].includes(e.code)) throw e;
+    }
+    if(cred){
+      let user=await loadProfile(cred.user);
+      if(!user){
+        // 上次升級若中途斷線：Auth 帳號已建立但資料未寫入，這裡補完
+        const h=await hashPw(p);
+        const old=await db.collection('accounts').where('username','==',u).get().catch(()=>null);
+        const d=old&&old.docs.find(x=>!x.data().uid&&(x.data().password===h||x.data().password===p));
+        if(d){
+          const batch=db.batch();
+          batch.set(db.collection('users').doc(cred.user.uid),{username:d.data().username,accountId:d.id,role:d.data().role||'member'});
+          batch.update(d.ref,{uid:cred.user.uid,password:firebase.firestore.FieldValue.delete()});
+          await batch.commit();
+          user=await loadProfile(cred.user);
+        }
+      }
+      if(!user){await auth.signOut();errEl.textContent='此帳號已停用，請聯絡管理員';return;}
+      finish(user);return;
+    }
+    // 尚未升級的舊帳號：驗證舊密碼後建立 Firebase Auth 帳號
+    const h=await hashPw(p);
+    let snap;
+    try{
+      snap=await db.collection('accounts').where('username','==',u).where('password','==',h).get();
+      if(snap.empty) snap=await db.collection('accounts').where('username','==',u).where('password','==',p).get();
+    }catch(e){
+      if(e.code==='permission-denied'){errEl.textContent='帳號或密碼錯誤';return;}
+      throw e;
+    }
+    if(snap.empty){errEl.textContent='帳號或密碼錯誤';return;}
+    const accDoc=snap.docs[0], acc=accDoc.data();
+    const legacyUser={...acc,docId:accDoc.id};
+    delete legacyUser.password;
+    let created;
+    try{
+      created=await auth.createUserWithEmailAndPassword(authEmail(u),p);
+    }catch(e){
+      if(e.code==='auth/email-already-in-use'){errEl.textContent='帳號或密碼錯誤';return;}
+      // 登入服務尚未啟用或舊密碼太短：先讓使用者進入，不鎖在門外
+      if(e.code==='auth/operation-not-allowed'||e.code==='auth/weak-password'||e.code==='auth/admin-restricted-operation'){
+        console.warn('帳號暫未升級',e.code);finish(legacyUser);return;
+      }
+      throw e;
+    }
+    const uid=created.user.uid, batch=db.batch();
+    batch.set(db.collection('users').doc(uid),{username:acc.username,accountId:accDoc.id,role:acc.role||'member'});
+    batch.update(accDoc.ref,{uid,password:firebase.firestore.FieldValue.delete()});
+    await batch.commit();
+    finish({...legacyUser,uid});
+  }catch(e){
+    errEl.textContent=e.code==='auth/too-many-requests'?'嘗試次數過多，請稍後再試':'登入失敗：'+e.message;
+  }
 }
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus()});
@@ -1039,12 +1059,9 @@ function doLogout(){
   unsubscribes.forEach(u=>u());unsubscribes=[];
   currentUser=null;
   lsRemove('fh_session');
+  if(auth) auth.signOut().catch(console.error);
   document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').classList.add('show');
-  const saved=JSON.parse(lsGet('fh_saved')||'null');
-  document.getElementById('login-user').value=saved?saved.u:'';
-  document.getElementById('login-pass').value=saved?saved.p:'';
-  document.getElementById('login-remember').checked=!!saved;
+  showLoginScreen();
 }
 
 // ══════════════════════════════════════════
@@ -1921,6 +1938,7 @@ function renderSettings(){
     <div class="account-row">
       <div class="avatar" style="width:34px;height:34px;min-width:34px;font-size:13px;background:var(--accent-light);color:var(--accent-dark)">${a.name.charAt(0)}</div>
       <div style="flex:1"><div style="font-size:13px;font-weight:500">${esc(a.name)} <span style="font-size:11px;color:var(--text3)">(${esc(a.username)})</span></div><div style="font-size:11px;color:var(--text2)">${a.role==='admin'?'管理員':'一般成員'}</div></div>
+      ${isAdmin()?`<span style="font-size:11px;white-space:nowrap;color:${a.uid?'var(--green)':'var(--amber)'}">${a.uid?'已升級':'待登入升級'}</span>`:''}
       <span class="badge ${a.role==='admin'?'badge-admin':'badge-member'}">${a.role==='admin'?'管理員':'成員'}</span>
       ${isAdmin()&&a.username!==currentUser.username?`<span class="del-btn" onclick="delAccount('${a._id}',${jsArg(a.username)})"><i class="ti ti-trash"></i></span>`:''}
     </div>`).join('');
@@ -2284,14 +2302,17 @@ async function changePassword(){
   if(!old||!nw||!cf){msg.style.color='var(--red)';msg.textContent='請填寫所有欄位';return;}
   if(nw!==cf){msg.style.color='var(--red)';msg.textContent='新密碼與確認密碼不一致';return;}
   if(nw.length<6){msg.style.color='var(--red)';msg.textContent='密碼至少需6個字元';return;}
-  const acc=D.accounts.find(a=>a.username===currentUser.username);
-  const oldH=await hashPw(old);
-  if(!acc||(acc.password!==oldH&&acc.password!==old)){msg.style.color='var(--red)';msg.textContent='目前密碼錯誤';return;}
+  const fbUser=auth&&auth.currentUser;
+  if(!fbUser){msg.style.color='var(--red)';msg.textContent='帳號尚未升級，請重新登入後再試';return;}
   syncDot('syncing');
-  const nwH=await hashPw(nw);
-  await db.collection('accounts').doc(acc._id).update({password:nwH});
-  currentUser.password=nwH;
-  lsSet('fh_session',JSON.stringify(currentUser));
+  try{
+    await fbUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(fbUser.email,old));
+    await fbUser.updatePassword(nw);
+  }catch(e){
+    syncDot('');msg.style.color='var(--red)';
+    msg.textContent=['auth/invalid-credential','auth/wrong-password','auth/invalid-login-credentials'].includes(e.code)?'目前密碼錯誤':'更新失敗：'+e.message;
+    return;
+  }
   document.getElementById('pw-old').value='';document.getElementById('pw-new').value='';document.getElementById('pw-confirm').value='';
   msg.style.color='var(--green)';msg.textContent='密碼已成功更新';syncDot('synced');
   setTimeout(()=>msg.textContent='',3000);
@@ -2306,15 +2327,35 @@ async function saveNewUser(){
   if(password.length<6){msg.style.color='var(--red)';msg.textContent='密碼至少需6個字元';return;}
   if(D.accounts.find(a=>a.username===username)){msg.style.color='var(--red)';msg.textContent='帳號已存在';return;}
   syncDot('syncing');
-  const pwH=await hashPw(password);
-  await db.collection('accounts').doc(username).set({username,name,password:pwH,role,createdAt:ts()});
+  // 用第二個 Firebase 實例建立帳號，管理員才不會被切換登入身分
+  const second=firebase.initializeApp(firebase.app().options,'create-user-'+Date.now());
+  try{
+    const c=await second.auth().createUserWithEmailAndPassword(authEmail(username),password);
+    const batch=db.batch();
+    batch.set(db.collection('users').doc(c.user.uid),{username,accountId:username,role});
+    batch.set(db.collection('accounts').doc(username),{username,name,role,uid:c.user.uid,createdAt:ts()});
+    await batch.commit();
+    await second.auth().signOut();
+  }catch(e){
+    syncDot('');msg.style.color='var(--red)';
+    msg.textContent=e.code==='auth/email-already-in-use'?'這個帳號名稱曾經使用過，請換一個':'建立失敗：'+e.message;
+    await second.delete().catch(()=>{});
+    return;
+  }
+  await second.delete().catch(()=>{});
   document.getElementById('au-user').value='';document.getElementById('au-name').value='';document.getElementById('au-pass').value='';
   msg.style.color='var(--green)';msg.textContent='帳號建立成功';syncDot('synced');
   setTimeout(()=>{msg.textContent='';closeModal('modal-adduser');},1200);
 }
 async function delAccount(docId,username){
   if(!confirm(`確定刪除帳號 ${username}？`))return;
-  syncDot('syncing');await db.collection('accounts').doc(docId).delete();syncDot('synced');
+  syncDot('syncing');
+  const acc=D.accounts.find(a=>a._id===docId);
+  const batch=db.batch();
+  batch.delete(db.collection('accounts').doc(docId));
+  if(acc&&acc.uid) batch.delete(db.collection('users').doc(acc.uid)); // 移除後該帳號立即失去存取權
+  await batch.commit();
+  syncDot('synced');
 }
 
 // ══════════════════════════════════════════

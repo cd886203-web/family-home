@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function profilePath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+    function isMember() {
+      return request.auth != null && exists(profilePath());
+    }
+    function isAdmin() {
+      return isMember() && get(profilePath()).data.role == 'admin';
+    }
+    function myUsername() {
+      return get(profilePath()).data.username;
+    }
+
+    // 登入畫面需要顯示網站名稱
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if isMember();
+    }
+
+    // 身分與權限：只有管理員能修改
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isMember());
+      allow write: if isAdmin();
+    }
+    match /accounts/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+
+    // 積分：任務與商品由管理員設定
+    match /point_tasks/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /point_shop/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    // 小朋友只能替自己送出「待確認」申請，不能自行核准
+    match /point_logs/{id} {
+      allow read: if isMember();
+      allow create: if isAdmin()
+        || (isMember()
+            && request.resource.data.childUsername == myUsername()
+            && request.resource.data.status == 'pending'
+            && request.resource.data.type in ['earn', 'redeem']);
+      allow update, delete: if isAdmin();
+    }
+
+    // 一般家庭資料：登入成員可讀寫
+    match /{col}/{id} {
+      allow read, write: if isMember()
+        && col in ['bulletins', 'events', 'todos', 'ledger', 'ledger_logs',
+                   'ledger_recurring', 'shopping', 'memos', 'members',
+                   'album', 'grades', 'garbage'];
+    }
+  }
+}
