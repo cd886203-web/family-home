@@ -422,7 +422,7 @@ textarea{resize:vertical;min-height:72px}
         <div class="cal-grid" id="cal-grid"></div>
         <div id="event-list" style="padding:0 16px 16px"></div>
         <div style="padding:0 16px 16px">
-          <div class="section-head" style="margin-top:0"><div class="section-title"><i class="ti ti-trash"></i> 今日倒垃圾</div></div>
+          <div class="section-head" style="margin-top:0"><div class="section-title"><i class="ti ti-trash"></i> 倒垃圾排班</div></div>
           <div class="card" id="garbage-card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"></div>
         </div>
       </div>
@@ -725,6 +725,14 @@ textarea{resize:vertical;min-height:72px}
 <div class="modal-overlay" id="modal-day-view"><div class="modal">
   <div class="modal-title" id="modal-day-title">活動 <span class="modal-close" onclick="closeModal('modal-day-view')">×</span></div>
   <div id="modal-day-body"></div>
+</div></div>
+
+<!-- 倒垃圾每週輪值 Modal -->
+<div class="modal-overlay" id="modal-garbage-rotation"><div class="modal">
+  <div class="modal-title">每週輪值 <span class="modal-close" onclick="closeModal('modal-garbage-rotation')">×</span></div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:10px">設定後每週自動套用；單日指定的人員會優先於輪值。</div>
+  <div id="garbage-rotation-form"></div>
+  <button class="btn btn-primary" style="width:100%" onclick="saveGarbageRotation()">儲存輪值</button>
 </div></div>
 
 <!-- 固定收支 Modal -->
@@ -1248,9 +1256,9 @@ function renderCalendar(){
     const isSun=dow===0, isSat=dow===6;
     const evts=eventsOn(ds).sort((a,b)=>a.name.localeCompare(b.name));
     const todos=D.todos.filter(t=>t.date===ds&&!t.done);
-    const gRec=D.garbage.find(g=>g.date===ds);
     const numCls='cal-day-num'+(isT?' today':isSun?' sun':isSat?' sat':'');
-    const gTag=gRec?`<span class="cal-event-tag" style="background:${gRec.done?'var(--green)':'#888'};color:#fff;opacity:0.85">🗑 ${esc(gRec.name)}</span>`:'';
+    const gInfo=garbageFor(ds);
+    const gTag=gInfo.name&&!gInfo.skip?`<span class="cal-event-tag" style="background:${gInfo.done?'var(--green)':'#888'};color:#fff;opacity:0.85">🗑 ${esc(gInfo.name)}</span>`:'';
     const tags=[
       ...evts.map(e=>`<span class="cal-event-tag" style="background:${e.color};color:#fff">${esc(e.name)}</span>`),
       ...todos.map(t=>`<span class="cal-event-tag" style="background:var(--border);color:var(--text2)">✓ ${esc(t.text)}</span>`),
@@ -1280,49 +1288,108 @@ function renderCalendar(){
 function calMove(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
 
 // ── 倒垃圾 ──
+const GARBAGE_SKIP='不用倒';
+const WEEK_NAMES=['日','一','二','三','四','五','六'];
+let garbageDate=null; // 目前選取的日期，null 代表今天
+function gDateStr(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function gRotation(){ return D.garbage.find(g=>g._id==='_rotation')?.weekly||{}; }
+function gRotationName(ds){ return gRotation()[new Date(ds+'T00:00:00').getDay()]||''; }
+// 單日指定優先於每週輪值；過去日期只看實際紀錄
+function garbageFor(ds){
+  const rec=D.garbage.find(g=>g.date===ds);
+  if(rec&&rec.name) return {name:rec.name,done:!!rec.done,skip:rec.name===GARBAGE_SKIP,custom:true,rec};
+  const name=ds>=nowDate()?gRotationName(ds):'';
+  return {name,done:!!rec?.done,skip:name===GARBAGE_SKIP,custom:false,rec};
+}
+function garbageOptions(selected,emptyLabel){
+  const opt=n=>`<option value="${esc(n)}"${n===selected?' selected':''}>${esc(n)}</option>`;
+  const names=[...new Set(D.accounts.map(a=>a.name))];
+  return `<option value="">${esc(emptyLabel)}</option>
+    <optgroup label="個人">${names.map(opt).join('')}</optgroup>
+    <optgroup label="群組">${opt('兄弟一起')}${opt('爸爸媽媽')}</optgroup>
+    <optgroup label="其他">${opt(GARBAGE_SKIP)}</optgroup>`;
+}
 function renderGarbage(){
   const card=document.getElementById('garbage-card');
   if(!card)return;
   const today=nowDate();
-  const rec=D.garbage.find(g=>g.date===today);
-  const names=D.accounts.map(a=>a.name);
-  const person=rec?rec.name:'';
-  const done=rec?!!rec.done:false;
+  const ds=garbageDate||today;
+  const info=garbageFor(ds);
+  const rotName=gRotationName(ds);
+  const isFuture=ds>today;
+  const emptyLabel=rotName?`依每週輪值（${rotName}）`:'-- 選擇人員 --';
+  const days=[];
+  for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()+i);days.push(gDateStr(d));}
+  const chips=days.map((x,i)=>{
+    const g=garbageFor(x), active=x===ds, d=new Date(x+'T00:00:00');
+    const who=g.skip?GARBAGE_SKIP:(g.name||'未排');
+    return `<button type="button" onclick="selectGarbageDate('${x}')" style="flex:1 0 76px;min-width:76px;padding:6px 4px;border-radius:8px;cursor:pointer;text-align:center;border:1.5px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent-light)':'var(--surface)'};color:var(--text)">
+      <div style="font-size:11px;color:var(--text2)">${i===0?'今天':`${d.getMonth()+1}/${d.getDate()}`} 週${WEEK_NAMES[d.getDay()]}</div>
+      <div style="font-size:13px;font-weight:600;color:${g.done?'var(--green)':g.name&&!g.skip?'var(--accent-dark)':'var(--text3)'}">${g.done?'✓ ':''}${esc(who)}</div>
+    </button>`;
+  }).join('');
+  card.style.display='block';
   card.innerHTML=`
-    <i class="ti ti-user" style="font-size:20px;color:var(--text2)"></i>
-    <select id="garbage-person" style="flex:1;min-width:80px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2)">
-      <option value="">-- 選擇人員 --</option>
-      <optgroup label="個人">
-      ${names.map(n=>`<option value="${esc(n)}"${n===person?' selected':''}>${esc(n)}</option>`).join('')}
-      </optgroup>
-      <optgroup label="群組">
-        <option value="兄弟一起"${'兄弟一起'===person?' selected':''}>兄弟一起</option>
-        <option value="爸爸媽媽"${'爸爸媽媽'===person?' selected':''}>爸爸媽媽</option>
-      </optgroup>
-    </select>
-    <button class="btn btn-primary" style="padding:4px 12px;font-size:13px" onclick="saveGarbagePerson()">指定</button>
-    <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;white-space:nowrap">
-      <input type="checkbox" id="garbage-done" ${done?'checked':''} onchange="toggleGarbageDone(this.checked)">
-      <span style="color:${done?'var(--green)':'var(--text2)'}">${done?'已完成':'標記完成'}</span>
-    </label>
-    ${person?`<span style="font-size:12px;color:var(--text3)">今日：<b style="color:var(--accent)">${esc(person)}</b></span>`:'<span style="font-size:12px;color:var(--text3)">尚未指定</span>'}
-  `;
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:10px">${chips}</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <input type="date" id="garbage-date" value="${ds}" onchange="selectGarbageDate(this.value)" style="width:150px">
+      <select id="garbage-person" style="flex:1;min-width:130px">${garbageOptions(info.custom?info.name:'',emptyLabel)}</select>
+      <button class="btn btn-primary" onclick="saveGarbagePerson()">指定</button>
+      <label style="display:flex;align-items:center;gap:5px;font-size:13px;white-space:nowrap;cursor:${isFuture||info.skip?'not-allowed':'pointer'}">
+        <input type="checkbox" style="width:auto" ${info.done?'checked':''} ${isFuture||info.skip?'disabled':''} onchange="toggleGarbageDone(this.checked)">
+        <span style="color:${info.done?'var(--green)':'var(--text2)'}">${info.done?'已完成':'標記完成'}</span>
+      </label>
+      <button class="btn" onclick="openGarbageRotation()"><i class="ti ti-repeat"></i> 每週輪值</button>
+    </div>`;
+}
+function selectGarbageDate(ds){
+  if(!ds) return;
+  garbageDate=ds===nowDate()?null:ds;
+  renderGarbage();
 }
 async function saveGarbagePerson(){
+  const ds=garbageDate||nowDate();
   const name=document.getElementById('garbage-person').value;
-  if(!name){alert('請選擇人員');return;}
-  const today=nowDate();
-  const rec=D.garbage.find(g=>g.date===today);
-  const done=rec?!!rec.done:false;
-  await db.collection('garbage').doc(today).set({date:today,name,done});
+  const rec=D.garbage.find(g=>g.date===ds);
+  const ref=db.collection('garbage').doc(ds);
+  try{
+    if(!name){
+      // 選回「依每週輪值」：清除這天的單日指定
+      if(!gRotationName(ds)){alert('請選擇人員');return;}
+      if(rec) await ref.delete();
+      return;
+    }
+    await ref.set({date:ds,name,done:name===GARBAGE_SKIP?false:!!rec?.done});
+  }catch(e){alert('儲存失敗：'+e.message);}
 }
 async function toggleGarbageDone(checked){
-  const today=nowDate();
-  const rec=D.garbage.find(g=>g.date===today);
-  const name=rec?rec.name:(document.getElementById('garbage-person').value||'');
-  await db.collection('garbage').doc(today).set({date:today,name,done:checked});
+  const ds=garbageDate||nowDate();
+  const info=garbageFor(ds);
+  if(!info.name){alert('請先指定人員');renderGarbage();return;}
+  try{
+    // 完成時把當天負責人寫入紀錄，之後改輪值也不影響歷史
+    await db.collection('garbage').doc(ds).set({date:ds,name:info.name,done:checked});
+  }catch(e){alert('儲存失敗：'+e.message);renderGarbage();}
+}
+function openGarbageRotation(){
+  const r=gRotation();
+  document.getElementById('garbage-rotation-form').innerHTML=[1,2,3,4,5,6,0].map(i=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <label style="width:48px;font-size:13px;font-weight:600">週${WEEK_NAMES[i]}</label>
+      <select id="gr-day-${i}" style="flex:1">${garbageOptions(r[i]||'','未排')}</select>
+    </div>`).join('');
+  openModal('modal-garbage-rotation');
+}
+async function saveGarbageRotation(){
+  const weekly={};
+  for(let i=0;i<7;i++){const v=document.getElementById('gr-day-'+i).value;if(v)weekly[i]=v;}
+  try{
+    await db.collection('garbage').doc('_rotation').set({weekly});
+    closeModal('modal-garbage-rotation');
+  }catch(e){alert('儲存失敗：'+e.message);}
 }
 function openDayView(ds){
+  garbageDate=ds;renderGarbage();
   const evts=eventsOn(ds);
   const todos=D.todos.filter(t=>t.date===ds);
   if(!evts.length&&!todos.length)return;
